@@ -2,8 +2,8 @@ const CACHE = 'hierro-v1';
 
 // Archivos del shell de la app — se cachean al instalar
 const SHELL = [
-  '/',
-  '/index.html'
+  './',
+  './index.html'
 ];
 
 // Al instalar: cachear el shell

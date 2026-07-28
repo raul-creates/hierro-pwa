@@ -2,7 +2,7 @@
   "name": "HIERRO Training Log",
   "short_name": "HIERRO",
   "description": "Registro de entrenamiento personal",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#0F1117",
   "theme_color": "#FFD200",
