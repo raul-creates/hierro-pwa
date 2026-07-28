@@ -190,6 +190,15 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 /* ── TOAST ── */
 .toast{position:fixed;bottom:68px;left:50%;transform:translateX(-50%);background:#FFD200;color:#0F1117;padding:8px 18px;border-radius:18px;font-size:12px;font-weight:700;opacity:0;transition:opacity 0.2s;pointer-events:none;z-index:300;white-space:nowrap}
 .toast.show{opacity:1}
+
+/* ── PICKER ── */
+.picker-overlay{position:fixed;inset:0;background:#0F1117;z-index:400;display:none;flex-direction:column;max-width:480px;margin:0 auto}
+.picker-overlay.active{display:flex}
+.picker-body{flex:1;overflow-y:auto;padding-bottom:20px}
+.picker-section{margin:14px 14px 7px;color:#fff;font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;opacity:0.35}
+.picker-trigger{display:flex;align-items:center;gap:7px;text-align:left}
+.picker-trigger-thumb{width:22px;height:22px;border-radius:4px;overflow:hidden;flex-shrink:0;background:#0F1117}
+.picker-trigger-thumb img{width:100%;height:100%;object-fit:cover}
 </style>
 </head>
 <body>
@@ -274,6 +283,15 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="picker-overlay" id="picker-overlay">
+  <div class="header" style="border-bottom:none">
+    <button class="btn-back" onclick="closePicker()">←</button>
+    <span class="header-title">Elegir ejercicio</span>
+  </div>
+  <div class="guide-search"><input type="text" id="picker-search-input" placeholder="Buscar ejercicio…" oninput="filterPicker()"></div>
+  <div class="picker-body" id="picker-body"></div>
+</div>
 
 <script>
 const RAW = 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/';
@@ -446,6 +464,8 @@ let gSearch = '';
 let gSelectedId = '';
 let gFiltered = [];
 let gChartMetric = 'max';
+let pickerExBlockId = '';
+let pickerSearch = '';
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
@@ -584,32 +604,6 @@ function buildExBlock(ex){
 
   const groupOpts=GROUPS.map(g=>`<option value="${g.id}"${ex.cat===g.id?' selected':''}>${g.label}</option>`).join('');
 
-  let exOpts='';
-  if(ex.cat){
-    const sgs=SUBGROUP_DEF[ex.cat]||[{id:'all',label:'Todos'}];
-    const activeSg=sgs.find(s=>s.id!=='all'&&s.fn)?sgs[0]:null; // no subgroup selected yet in editor, show all
-    const exsInGroup=EXERCISES.filter(e=>GROUP_MERGE[e.category]===ex.cat).sort((a,b)=>a.name.localeCompare(b.name));
-    // Group by subgroup in optgroups
-    const sgsWithContent=sgs.filter(s=>s.id!=='all');
-    if(sgsWithContent.length>1){
-      const used=new Set();
-      let html='<option value="">— Ejercicio —</option>';
-      for(const sg of sgsWithContent){
-        const sgExs=exsInGroup.filter(e=>sg.fn(e)&&!used.has(e.id));
-        if(!sgExs.length)continue;
-        html+=`<optgroup label="${sg.label}">`;
-        for(const e of sgExs){used.add(e.id);html+=`<option value="${e.id}"${ex.exId===e.id?' selected':''}>${esName(e)} / ${e.name}</option>`;}
-        html+=`</optgroup>`;
-      }
-      // Remaining
-      const rest=exsInGroup.filter(e=>!used.has(e.id));
-      if(rest.length){html+=`<optgroup label="Otros">`;for(const e of rest){html+=`<option value="${e.id}"${ex.exId===e.id?' selected':''}>${esName(e)} / ${e.name}</option>`;}html+=`</optgroup>`;}
-      exOpts=html;
-    } else {
-      exOpts='<option value="">— Ejercicio —</option>'+exsInGroup.map(e=>`<option value="${e.id}"${ex.exId===e.id?' selected':''}>${esName(e)} / ${e.name}</option>`).join('');
-    }
-  }
-
   const setsHTML=ex.sets.map((s,si)=>`
     <div class="set-row">
       <span class="set-dot">●</span>
@@ -624,7 +618,7 @@ function buildExBlock(ex){
         <select class="step-select${!ex.cat?' ph':''}" onchange="updateExCat('${ex.id}',this.value)">
           <option value="">— Grupo muscular —</option>${groupOpts}
         </select>
-        ${ex.cat?`<select class="step-select${!ex.exId?' ph':''}" onchange="updateExId('${ex.id}',this.value)">${exOpts}</select>`:''}
+        ${ex.cat?`<button type="button" class="step-select picker-trigger${!ex.exId?' ph':''}" onclick="openPicker('${ex.id}')">${exData?`<span class="picker-trigger-thumb"><img src="${RAW+exData.image}" loading="lazy" onerror="this.style.display='none'"></span><span>${esName(exData)}</span>`:'— Ejercicio —'}</button>`:''}
       </div>
       <button class="btn-remove-ex" onclick="removeExercise('${ex.id}')" ${!canRm?'disabled style="color:#1E2130"':''}>✕</button>
     </div>
@@ -654,6 +648,80 @@ function saveSession(){
   const idx=log.findIndex(s=>s.id===editSession.id);
   if(idx>=0)log[idx]=editSession;else log.unshift(editSession);
   saveLog();toast('Sesión guardada');showLog();
+}
+
+// ── EXERCISE PICKER ──────────────────────────────────────────────────────────
+function matchesTokens(ex, query){
+  if(!query) return true;
+  const haystack=(esName(ex)+' '+ex.name).toLowerCase();
+  return query.split(/\s+/).filter(Boolean).every(tok=>haystack.includes(tok));
+}
+function recentExercisesForCat(cat, limit){
+  const seen=new Set(), out=[];
+  const sorted=[...log].sort((a,b)=>b.date.localeCompare(a.date));
+  for(const s of sorted){
+    for(const e of s.exercises){
+      if(e.cat===cat && e.exId && !seen.has(e.exId)){
+        seen.add(e.exId);
+        const ex=EXERCISES.find(x=>x.id===e.exId);
+        if(ex) out.push(ex);
+        if(out.length>=limit) return out;
+      }
+    }
+  }
+  return out;
+}
+function openPicker(exBlockId){
+  pickerExBlockId=exBlockId;
+  pickerSearch='';
+  document.getElementById('picker-search-input').value='';
+  renderPickerBody();
+  document.getElementById('picker-overlay').classList.add('active');
+}
+function closePicker(){
+  document.getElementById('picker-overlay').classList.remove('active');
+}
+function filterPicker(){
+  pickerSearch=document.getElementById('picker-search-input').value.trim().toLowerCase();
+  renderPickerBody();
+}
+function renderPickerBody(){
+  const block=editSession.exercises.find(e=>e.id===pickerExBlockId);
+  if(!block)return;
+  const cat=block.cat;
+  const body=document.getElementById('picker-body');
+  const matched=EXERCISES.filter(e=>GROUP_MERGE[e.category]===cat && matchesTokens(e,pickerSearch));
+  let html='';
+  if(!pickerSearch){
+    const recent=recentExercisesForCat(cat,5);
+    if(recent.length){
+      html+=`<div class="picker-section">Recientes</div>`;
+      html+=recent.map(e=>renderExerciseListItem(e, e.id===block.exId, `selectPickerExercise('${e.id}')`)).join('');
+    }
+  }
+  if(!matched.length){
+    html+=`<div class="guide-list-empty">Sin resultados</div>`;
+  } else {
+    const sgs=(SUBGROUP_DEF[cat]||[]).filter(s=>s.id!=='all'&&s.fn);
+    const used=new Set();
+    for(const sg of sgs){
+      const sgExs=matched.filter(e=>sg.fn(e)&&!used.has(e.id)).sort((a,b)=>a.name.localeCompare(b.name));
+      if(!sgExs.length)continue;
+      html+=`<div class="picker-section">${sg.label}</div>`;
+      for(const e of sgExs){used.add(e.id);html+=renderExerciseListItem(e,e.id===block.exId,`selectPickerExercise('${e.id}')`);}
+    }
+    const rest=matched.filter(e=>!used.has(e.id)).sort((a,b)=>a.name.localeCompare(b.name));
+    if(rest.length){
+      if(sgs.length)html+=`<div class="picker-section">Otros</div>`;
+      html+=rest.map(e=>renderExerciseListItem(e,e.id===block.exId,`selectPickerExercise('${e.id}')`)).join('');
+    }
+  }
+  body.innerHTML=html;
+}
+function selectPickerExercise(exId){
+  updateExId(pickerExBlockId, exId);
+  renderExercises();
+  closePicker();
 }
 
 // ── GUIDE ─────────────────────────────────────────────────────────────────────
