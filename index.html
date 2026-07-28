@@ -126,8 +126,6 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .gex-text{display:flex;flex-direction:column;gap:2px;min-width:0}
 .gex-name-es{color:#888;font-size:10px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gex-btn.active .gex-name-es{color:#fff}
-.gex-name-en{color:#3A3D55;font-size:9px;font-weight:400;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gex-btn.active .gex-name-en{color:#555}
 
 /* Guide detail */
 .guide-detail{flex:1;overflow-y:auto;padding:16px 14px;padding-bottom:70px}
@@ -698,19 +696,20 @@ function applyGuideFilter(){
   if(!gFiltered.find(e=>e.id===gSelectedId))gSelectedId=gFiltered[0]?.id||'';
   renderGuideDetail();
 }
+function renderExerciseListItem(ex, active, onclickJs){
+  return `<button class="gex-btn${active?' active':''}" onclick="${onclickJs}">
+      <div class="gex-img-wrap">
+        <img src="${RAW+ex.image}" loading="lazy" onerror="this.style.display='none'">
+      </div>
+      <div class="gex-text">
+        <span class="gex-name-es">${esName(ex)}</span>
+      </div>
+    </button>`;
+}
 function renderGuideList(){
   const el=document.getElementById('guide-list');
   if(!gFiltered.length){el.innerHTML=`<div class="guide-list-empty">Sin resultados</div>`;return;}
-  el.innerHTML=gFiltered.map(e=>`
-    <button class="gex-btn${e.id===gSelectedId?' active':''}" onclick="selectGuideEx('${e.id}')">
-      <div class="gex-img-wrap">
-        <img src="${RAW+e.image}" loading="lazy" onerror="this.style.display='none'">
-      </div>
-      <div class="gex-text">
-        <span class="gex-name-es">${esName(e)}</span>
-        <span class="gex-name-en">${e.name}</span>
-      </div>
-    </button>`).join('');
+  el.innerHTML=gFiltered.map(e=>renderExerciseListItem(e, e.id===gSelectedId, `selectGuideEx('${e.id}')`)).join('');
 }
 function selectGuideEx(id){
   gSelectedId=id;
