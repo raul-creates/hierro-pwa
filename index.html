@@ -27,7 +27,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 /* ── HEADER ── */
 .header{padding:13px 14px 10px;border-bottom:1px solid #1E2130;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#0F1117;z-index:10}
 .logo-block .wordmark{color:#FFD200;font-weight:900;font-size:18px;letter-spacing:-0.5px;line-height:1}
-.logo-block .sub{color:#383C50;font-size:9px;letter-spacing:2.5px;font-weight:700;margin-top:1px}
+.logo-block .sub{color:#9195A3;font-size:9px;letter-spacing:0.3px;font-weight:600;margin-top:2px;line-height:1.3;max-width:230px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .header-actions{display:flex;gap:7px}
 .btn-ghost{background:#1A1D2E;border:none;border-radius:7px;color:#888;padding:6px 11px;font-size:11px;font-weight:600;cursor:pointer}
 .btn-primary{background:#FFD200;border:none;border-radius:7px;color:#0F1117;padding:6px 12px;font-size:11px;font-weight:800;cursor:pointer}
@@ -185,6 +185,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 #loader .lw{color:#FFD200;font-weight:900;font-size:24px;margin-bottom:12px}
 #loader .ls{color:#444;font-size:11px}
 .spin{width:22px;height:22px;border:2px solid #1E2130;border-top-color:#FFD200;border-radius:50%;animation:spin 0.7s linear infinite;margin:12px auto 0}
+#loader .ls-quote{color:#9195A3;font-size:10px;margin-top:14px;max-width:260px;text-align:center;line-height:1.4;padding:0 20px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ── TOAST ── */
@@ -206,6 +207,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 <div id="loader">
   <div class="lw">HIERRO</div>
   <div class="ls">Cargando biblioteca…</div>
+  <div class="ls-quote" id="loader-quote"></div>
   <div class="spin"></div>
 </div>
 
@@ -214,7 +216,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
   <!-- ── LOG ── -->
   <div class="view active" id="view-log">
     <div class="header">
-      <div class="logo-block"><div class="wordmark">HIERRO</div><div class="sub">TRAINING LOG</div></div>
+      <div class="logo-block"><div class="wordmark">HIERRO</div><div class="sub" id="log-quote"></div></div>
       <div class="header-actions">
         <button class="btn-ghost" onclick="exportCSV()">CSV</button>
         <button class="btn-primary" onclick="newSession()">+ Sesión</button>
@@ -453,6 +455,51 @@ function esName(ex) {
   return ex.name.charAt(0).toUpperCase() + ex.name.slice(1);
 }
 
+// ── QUOTES ────────────────────────────────────────────────────────────────────
+const QUOTES = [
+  'Tienes poder sobre tu mente, no sobre los hechos externos. Reconócelo y hallarás fuerza.',
+  'La felicidad de tu vida depende de la calidad de tus pensamientos.',
+  'Lo que no beneficia a la colmena, no beneficia a la abeja.',
+  'Acepta lo que te toca vivir y ama a las personas con quienes te toca vivir.',
+  'El obstáculo en el camino se convierte en el camino.',
+  'Mientras vivas, mientras puedas, hazte bueno.',
+  'Cuando te levantes por la mañana, piensa qué privilegio es estar vivo.',
+  'Todo lo que oyes es una opinión, no un hecho. Todo lo que ves es una perspectiva, no la verdad.',
+  'Muy poco se necesita para vivir una vida feliz; todo está dentro de ti, en tu manera de pensar.',
+  'El mejor modo de vengarte es no parecerte a quien te hizo daño.',
+  'No pierdas más tiempo discutiendo qué debe ser un buen hombre. Sé uno.',
+  'Nuestra vida es lo que hacen de ella nuestros pensamientos.',
+  'Voy a hacer el trabajo de un ser humano.',
+  'Confínate al presente.',
+  'No es que tengamos poco tiempo, sino que perdemos mucho.',
+  'Mientras enseñamos, aprendemos.',
+  'La suerte es lo que sucede cuando la preparación se encuentra con la oportunidad.',
+  'Ningún viento es favorable para quien no sabe a qué puerto se dirige.',
+  'Sufrimos más en la imaginación que en la realidad.',
+  'Es propio de un espíritu grande despreciar las grandes cosas y preferir las moderadas.',
+  'Mientras haya vida, hay esperanza.',
+  'Todos los días deberíamos aprender algo que nos haga fuertes ante la desgracia.',
+  'El fuego prueba el oro; la adversidad, a los fuertes.',
+  'Empieza a vivir ya, y cuenta cada día como una vida separada.',
+  'Lo más difícil de aprender en la vida es qué puente cruzar y qué puente quemar.',
+  'La vida es breve si no la sabemos usar.',
+  'No son los hechos los que perturban a los hombres, sino los juicios sobre esos hechos.',
+  'Solo hay un camino a la felicidad: dejar de preocuparte por cosas que están fuera de tu voluntad.',
+  'Primero di quién quieres ser, y luego haz lo que tengas que hacer.',
+  'La riqueza no consiste en tener grandes posesiones, sino en tener pocas necesidades.',
+  'Es imposible aprender aquello que uno cree ya saber.',
+  'No busques que los hechos ocurran como quieres, sino desea que ocurran como ocurren.',
+  'Las circunstancias no hacen al hombre, solo lo revelan a sí mismo.',
+  'Ninguna cosa grande nace de repente.',
+  'El hombre libre es el que puede vivir como elige.',
+  'No expliques tu filosofía. Encárnala.',
+  'Primero, no te hagas daño a ti mismo.',
+  'Somos perturbados no por lo que sucede, sino por nuestra opinión de lo que sucede.',
+  'La disciplina, aplicada con paciencia, se convierte en algo natural.',
+  'Domina tu mente o ella te dominará a ti.',
+];
+function randomQuote(){return QUOTES[Math.floor(Math.random()*QUOTES.length)];}
+
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let EXERCISES = [];
 let log = [];
@@ -469,6 +516,7 @@ let pickerSearch = '';
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
+  document.getElementById('loader-quote').textContent = randomQuote();
   log = loadLog();
   try { const c=sessionStorage.getItem(EX_CACHE_KEY); if(c) EXERCISES=JSON.parse(c); } catch(e){}
   if (!EXERCISES.length) {
@@ -506,7 +554,7 @@ function showView(id){
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
 }
-function showLog(){showView('view-log');setActiveNav('bnav-log');renderLog();}
+function showLog(){showView('view-log');setActiveNav('bnav-log');renderLog();document.getElementById('log-quote').textContent=randomQuote();}
 function showGuide(){showView('view-guide');setActiveNav('bnav-guide');}
 function showStats(){showView('view-stats');setActiveNav('bnav-stats');renderStats();}
 function newSession(){
