@@ -141,6 +141,9 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .gd-section{color:#fff;font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:7px;opacity:0.35}
 .gd-muscles{margin-bottom:14px}
 .gd-steps{margin-bottom:14px}
+.gd-prog-toggle{display:flex;gap:6px;margin-bottom:10px}
+.gd-prog-empty{color:#444;font-size:11px;margin-bottom:14px}
+.gd-prog-chart{margin-bottom:14px}
 .gd-step{display:flex;gap:8px;margin-bottom:8px}
 .gd-step-n{color:#FFD200;font-size:10px;font-weight:800;flex-shrink:0;width:16px;margin-top:1px}
 .gd-step-t{color:#99A;font-size:11px;line-height:1.6}
@@ -444,6 +447,7 @@ let gSubgroup = 'all';
 let gSearch = '';
 let gSelectedId = '';
 let gFiltered = [];
+let gChartMetric = 'max';
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
@@ -715,6 +719,38 @@ function selectGuideEx(id){
   renderGuideDetail();
   document.getElementById('guide-detail').scrollTop=0;
 }
+function exerciseHistory(exId){
+  return log
+    .filter(s=>s.exercises.some(e=>e.exId===exId))
+    .map(s=>{
+      const sets=s.exercises.filter(e=>e.exId===exId).flatMap(e=>e.sets);
+      const weights=sets.map(st=>parseFloat(st.weight)||0);
+      const volume=sets.reduce((a,st)=>a+(parseFloat(st.weight)||0)*(parseFloat(st.reps)||0),0);
+      return {date:s.date, max:Math.max(...weights,0), volume};
+    })
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .slice(-12);
+}
+function buildProgressionSVG(history, metric){
+  const W=280, H=120, PAD=8;
+  const vals=history.map(h=>h[metric]);
+  const min=Math.min(...vals), max=Math.max(...vals);
+  const range=(max-min)||1;
+  const padRange=range*0.1;
+  const lo=min-padRange, hi=max+padRange;
+  const n=history.length;
+  const stepX=n>1?(W-PAD*2)/(n-1):0;
+  const pts=history.map((h,i)=>{
+    const x=PAD+i*stepX;
+    const y=H-PAD-((h[metric]-lo)/(hi-lo))*(H-PAD*2);
+    return {x,y,h};
+  });
+  const poly=pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const unit=metric==='max'?'kg':'kg·rep';
+  const circles=pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#FFD200"><title>${p.h.date}: ${p.h[metric]}${unit}</title></circle>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><polyline points="${poly}" fill="none" stroke="#FFD200" stroke-width="2"/>${circles}</svg>`;
+}
+function setChartMetric(metric){gChartMetric=metric;renderGuideDetail();}
 function renderGuideDetail(){
   const el=document.getElementById('guide-detail');
   if(!gSelectedId){el.innerHTML=`<div class="gd-empty">Seleccioná un ejercicio</div>`;return;}
@@ -723,6 +759,20 @@ function renderGuideDetail(){
   const steps=ex.instruction_steps?.es||ex.instruction_steps?.en||[];
   const instrText=ex.instructions?.es||ex.instructions?.en||'';
   const grpLabel=GROUPS.find(g=>g.id===GROUP_MERGE[ex.category])?.label||ex.category;
+
+  const history=exerciseHistory(ex.id);
+  let progressionHTML='';
+  if(history.length===1){
+    progressionHTML=`<div class="gd-section">Progresión</div><div class="gd-prog-empty">Registrá otra sesión con este ejercicio para ver la progresión.</div>`;
+  } else if(history.length>1){
+    progressionHTML=`<div class="gd-section">Progresión</div>
+      <div class="gd-prog-toggle">
+        <button class="gsg-btn${gChartMetric==='max'?' active':''}" onclick="setChartMetric('max')">Peso máx</button>
+        <button class="gsg-btn${gChartMetric==='volume'?' active':''}" onclick="setChartMetric('volume')">Volumen</button>
+      </div>
+      <div class="gd-prog-chart">${buildProgressionSVG(history,gChartMetric)}</div>`;
+  }
+
   el.innerHTML=`
     <div class="gd-name-es">${esName(ex)}</div>
     <div class="gd-name-en">${ex.name}</div>
@@ -734,6 +784,7 @@ function renderGuideDetail(){
     <img class="gd-gif" src="${RAW+ex.gif_url}" alt="${ex.name}" loading="lazy">
     <div class="gd-section">Músculos</div>
     <div class="gd-muscles">${muscles.map(m=>`<span class="mtag">${m}</span>`).join('')}</div>
+    ${progressionHTML}
     <div class="gd-section">Instrucciones</div>
     <div class="gd-steps">${steps.length
       ?steps.map((s,i)=>`<div class="gd-step"><span class="gd-step-n">${i+1}</span><span class="gd-step-t">${s}</span></div>`).join('')
