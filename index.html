@@ -818,6 +818,29 @@ function buildProgressionSVG(history, metric){
   return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><polyline points="${poly}" fill="none" stroke="#FFD200" stroke-width="2"/>${circles}</svg>`;
 }
 function setChartMetric(metric){gChartMetric=metric;renderGuideDetail();}
+function addToToday(){
+  const ex=EXERCISES.find(e=>e.id===gSelectedId);if(!ex)return;
+  const cat=GROUP_MERGE[ex.category];
+  const today=todayISO();
+  const existing=log.find(s=>s.date===today);
+  if(existing){
+    editSession=JSON.parse(JSON.stringify(existing));
+  } else {
+    editSession={id:uid(), date:today, exercises:[]};
+  }
+  let block=editSession.exercises.find(e=>e.exId===ex.id);
+  if(!block){
+    block={id:uid(), cat, exId:ex.id, sets:[emptySet()]};
+    editSession.exercises.push(block);
+  }
+  document.getElementById('editor-title').textContent=existing?'Editar sesión':'Nueva sesión';
+  document.getElementById('session-date').value=editSession.date;
+  renderExercises();
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-edit').classList.add('active');
+  window.scrollTo(0,0);
+  setTimeout(()=>{const el=document.getElementById(`exblock-${block.id}`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},50);
+}
 function renderGuideDetail(){
   const el=document.getElementById('guide-detail');
   if(!gSelectedId){el.innerHTML=`<div class="gd-empty">Seleccioná un ejercicio</div>`;return;}
@@ -848,6 +871,7 @@ function renderGuideDetail(){
       <span class="gd-badge">${ex.equipment}</span>
       <span class="gd-badge hl">${ex.target}</span>
     </div>
+    <button class="btn-primary" style="margin-bottom:14px" onclick="addToToday()">+ Agregar a hoy</button>
     <img class="gd-gif" src="${RAW+ex.gif_url}" alt="${ex.name}" loading="lazy">
     <div class="gd-section">Músculos</div>
     <div class="gd-muscles">${muscles.map(m=>`<span class="mtag">${m}</span>`).join('')}</div>
