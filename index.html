@@ -785,6 +785,7 @@ function selectGuideEx(id){
   document.querySelectorAll('.gex-btn').forEach(b=>{if(b.onclick?.toString().includes(`'${id}'`))b.classList.add('active');});
   renderGuideDetail();
   document.getElementById('guide-detail').scrollTop=0;
+  window.scrollTo(0,0);
 }
 function exerciseHistory(exId){
   return log
