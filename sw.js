@@ -1,4 +1,4 @@
-const CACHE = 'hierro-v1';
+const CACHE = 'hierro-v2';
 
 // Archivos del shell de la app — se cachean al instalar
 const SHELL = [
