@@ -1,4 +1,4 @@
-const CACHE = 'hierro-v2';
+const CACHE = 'hierro-v3';
 
 // Archivos del shell de la app — se cachean al instalar
 const SHELL = [
@@ -23,7 +23,9 @@ self.addEventListener('activate', e => {
 });
 
 // Fetch: estrategia mixta
-// - HTML del shell → Cache First (offline funciona)
+// - HTML del shell (mismo origen) → Network First con fallback a caché
+//   (así las actualizaciones llegan solas en la próxima carga, y sigue
+//   funcionando offline con la última versión vista)
 // - Imágenes/GIFs de GitHub → Network First con fallback a caché
 // - Todo lo demás → Network First
 self.addEventListener('fetch', e => {
@@ -32,7 +34,11 @@ self.addEventListener('fetch', e => {
   // Shell (mismo origen)
   if (url.origin === self.location.origin) {
     e.respondWith(
-      caches.match(e.request).then(cached => cached || fetch(e.request))
+      fetch(e.request, {cache: 'no-store'}).then(res => {
+        const resClone = res.clone();
+        caches.open(CACHE).then(cache => cache.put(e.request, resClone));
+        return res;
+      }).catch(() => caches.match(e.request))
     );
     return;
   }
