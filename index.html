@@ -36,6 +36,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 /* ── VIEWS ── */
 .view{display:none;padding-bottom:64px}
+#view-edit{padding-bottom:130px}
 .view.active{display:block}
 #view-guide{padding-bottom:0}
 
@@ -644,6 +645,14 @@ function renderExercises(){
   document.getElementById('exercises-container').innerHTML=editSession.exercises.map(ex=>buildExBlock(ex)).join('');
   validateSave();
 }
+function buildSetRow(exId,s,si,disabled){
+  return `<div class="set-row">
+      <span class="set-dot">●</span>
+      <div class="set-iw"><input type="number" inputmode="decimal" placeholder="0" value="${s.weight}" onchange="updateSet('${exId}',${si},'weight',this.value)"><span class="set-unit">kg</span></div>
+      <div class="set-iw"><input type="number" inputmode="numeric" placeholder="0" value="${s.reps}" onchange="updateSet('${exId}',${si},'reps',this.value)"><span class="set-unit">reps</span></div>
+      <button class="btn-rm-set" onclick="removeSet('${exId}',${si})" ${disabled?'disabled style="opacity:0.2"':''}>✕</button>
+    </div>`;
+}
 function buildExBlock(ex){
   const canRm=editSession.exercises.length>1;
   const exData=EXERCISES.find(e=>e.id===ex.exId);
@@ -652,13 +661,7 @@ function buildExBlock(ex){
 
   const groupOpts=GROUPS.map(g=>`<option value="${g.id}"${ex.cat===g.id?' selected':''}>${g.label}</option>`).join('');
 
-  const setsHTML=ex.sets.map((s,si)=>`
-    <div class="set-row">
-      <span class="set-dot">●</span>
-      <div class="set-iw"><input type="number" inputmode="decimal" placeholder="0" value="${s.weight}" onchange="updateSet('${ex.id}',${si},'weight',this.value)"><span class="set-unit">kg</span></div>
-      <div class="set-iw"><input type="number" inputmode="numeric" placeholder="0" value="${s.reps}" onchange="updateSet('${ex.id}',${si},'reps',this.value)"><span class="set-unit">reps</span></div>
-      <button class="btn-rm-set" onclick="removeSet('${ex.id}',${si})" ${ex.sets.length===1?'disabled style="opacity:0.2"':''}>✕</button>
-    </div>`).join('');
+  const setsHTML=ex.sets.map((s,si)=>buildSetRow(ex.id,s,si,ex.sets.length===1)).join('');
 
   return`<div class="ex-block" id="exblock-${ex.id}">
     <div class="ex-block-top">
@@ -672,7 +675,7 @@ function buildExBlock(ex){
     </div>
     <div class="muscles-row" id="muscles-${ex.id}">${muscleTags}</div>
     <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>Peso</span><span>Reps</span><span class="col-x"></span></div>
-    ${setsHTML}
+    <div class="sets-list" id="sets-${ex.id}">${setsHTML}</div>
     <button class="btn-add-set" onclick="addSet('${ex.id}')">+ Serie</button>
   </div>`;
 }
@@ -686,7 +689,15 @@ function updateExId(exId,val){
   validateSave();
 }
 function updateSet(exId,si,field,val){const ex=editSession.exercises.find(e=>e.id===exId);if(ex&&ex.sets[si])ex.sets[si][field]=val;}
-function addSet(exId){const ex=editSession.exercises.find(e=>e.id===exId);if(!ex)return;ex.sets.push(emptySet());renderExercises();}
+function addSet(exId){
+  const ex=editSession.exercises.find(e=>e.id===exId);if(!ex)return;
+  ex.sets.push(emptySet());
+  const container=document.getElementById(`sets-${exId}`);
+  if(!container){renderExercises();return;}
+  const si=ex.sets.length-1;
+  container.insertAdjacentHTML('beforeend',buildSetRow(exId,ex.sets[si],si,false));
+  container.querySelectorAll('.btn-rm-set').forEach(b=>{b.disabled=false;b.removeAttribute('style');});
+}
 function removeSet(exId,si){const ex=editSession.exercises.find(e=>e.id===exId);if(!ex||ex.sets.length<=1)return;ex.sets.splice(si,1);renderExercises();}
 function addExercise(){editSession.exercises.push(emptyEx());renderExercises();setTimeout(()=>{const b=document.querySelectorAll('.ex-block');if(b.length)b[b.length-1].scrollIntoView({behavior:'smooth'});},50);}
 function removeExercise(exId){if(editSession.exercises.length<=1)return;editSession.exercises=editSession.exercises.filter(e=>e.id!==exId);renderExercises();}
