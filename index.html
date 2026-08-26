@@ -331,6 +331,14 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 
 <div class="toast" id="toast"></div>
 
+<div class="picker-overlay" id="day-overlay">
+  <div class="header" style="border-bottom:none">
+    <button class="btn-back" onclick="closeDayOverlay()">←</button>
+    <span class="header-title">Reprogramar día</span>
+  </div>
+  <div class="picker-body" id="day-overlay-body"></div>
+</div>
+
 <div class="picker-overlay" id="picker-overlay">
   <div class="header" style="border-bottom:none">
     <button class="btn-back" onclick="closePicker()">←</button>
@@ -719,7 +727,7 @@ function renderPlanSemanal(){
     const cls=['week-day'];
     if(isToday)cls.push('today');
     if(routine||isRest)cls.push('has-routine');
-    cellsHtml+=`<button class="${cls.join(' ')}" onclick="onWeekDayTap('${iso}')">
+    cellsHtml+=`<button class="${cls.join(' ')}" onclick="onWeekDayTap('${iso}')" onmousedown="startLongPress('${iso}')" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress('${iso}')" ontouchend="cancelLongPress()">
       <div class="wd-letter">${WEEKDAY_LETTERS[wd]}</div>
       <div class="wd-name">${label}${hasOverride?' <span class="wd-ovr">·rep</span>':''}</div>
     </button>`;
@@ -731,6 +739,60 @@ function renderPlanSemanal(){
       <button onclick="showRoutines()">+ Nueva rutina</button>
     </div>
   </div>`;
+}
+
+let longPressTimer=null;
+let dayOverlayIso='';
+let dayOverlayChoice=null;
+function startLongPress(iso){
+  longPressTimer=setTimeout(()=>openDayOverlay(iso), 500);
+}
+function cancelLongPress(){
+  if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}
+}
+function openDayOverlay(iso){
+  dayOverlayIso=iso;
+  dayOverlayChoice=null;
+  renderDayOverlay();
+  document.getElementById('day-overlay').classList.add('active');
+}
+function closeDayOverlay(){
+  document.getElementById('day-overlay').classList.remove('active');
+}
+function renderDayOverlay(){
+  const body=document.getElementById('day-overlay-body');
+  const wd=new Date(dayOverlayIso+'T12:00:00').getDay();
+  const dayName=WEEKDAY_NAMES[wd];
+  let html=`<div style="padding:14px 14px 4px;color:#9195A3;font-size:14px;line-height:1.5">¿Enfermo, te salteaste un día o querés algo distinto? Elegí qué entrenar en su lugar.</div>`;
+  const items=[{id:'rest',label:'Descanso'},...routines.map(r=>({id:r.id,label:r.name}))];
+  html+=`<div style="padding:10px 14px">`+items.map(it=>
+    `<div style="padding:9px 0;cursor:pointer;font-weight:${dayOverlayChoice===it.id?'700':'400'};color:${dayOverlayChoice===it.id?'#FFD200':'#fff'}" onclick="pickDayOverlayChoice('${it.id}')">${it.label}</div>`
+  ).join('')+`</div>`;
+  if(dayOverlayChoice){
+    html+=`<div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px">
+      <button class="btn-primary" style="padding:11px 0" onclick="applyDayOverride('today')">Solo hoy</button>
+      <button class="btn-ghost" style="padding:9px 0" onclick="applyDayOverride('always')">Cambiar todos los ${dayName}</button>
+    </div>`;
+  }
+  body.innerHTML=html;
+}
+function pickDayOverlayChoice(id){ dayOverlayChoice=id; renderDayOverlay(); }
+function applyDayOverride(scope){
+  if(scope==='today'){
+    dayOverrides[dayOverlayIso]=dayOverlayChoice;
+    saveDayOverrides();
+  } else {
+    const wd=new Date(dayOverlayIso+'T12:00:00').getDay();
+    week[String(wd)]=dayOverlayChoice==='rest'?null:dayOverlayChoice;
+    saveWeek();
+    if(Object.prototype.hasOwnProperty.call(dayOverrides,dayOverlayIso)){
+      delete dayOverrides[dayOverlayIso];
+      saveDayOverrides();
+    }
+  }
+  closeDayOverlay();
+  renderPlanSemanal();
+  toast('Día actualizado');
 }
 
 function onWeekDayTap(iso){
