@@ -30,7 +30,7 @@ Quedan afuera de este spec (sub-proyectos separados, a definir después):
 
 ## Alcance
 
-Se agregan dos claves nuevas a `localStorage`, junto a `STORAGE_KEY`
+Se agregan tres claves nuevas a `localStorage`, junto a `STORAGE_KEY`
 (`hierro_log_v3`) ya existente. No se toca el modelo de `log`/sesiones salvo
 dos campos opcionales nuevos. No se agrega ninguna pestaña al bottom nav —
 nav queda igual (Log / Guía / Stats). Todo sigue en `index.html` (sin build
@@ -51,6 +51,13 @@ backup/restore completo de la Pieza 4 (ver esa pieza para el porqué).
 // { "0": routineId|null, "1": routineId|null, ..., "6": routineId|null }
 // Claves 0-6 = Date.getDay() (0 = domingo). El layout visual va lunes a
 // domingo (mapeo fijo de posición → índice, no cambia el valor de la clave).
+// Es la plantilla RECURRENTE ("los martes toca Push"), no lo que pasa un
+// día puntual — para eso está hierro_day_overrides.
+
+// localStorage key: 'hierro_day_overrides'
+// { "YYYY-MM-DD": routineId | "rest" }
+// Excepción para UNA fecha puntual, sin tocar la plantilla semanal. Una
+// fecha sin entrada acá cae al valor de hierro_week para su día de semana.
 ```
 
 Las sesiones guardadas (`log`) suman dos campos opcionales:
@@ -71,7 +78,7 @@ openGym en `plan-share.js` (import nunca pisa lo existente, IDs propios).
 
 1. Header: logo + frase, botón **"+ Sesión libre"** (el `+ Sesión` de hoy,
    renombrado — mismo botón, mismo comportamiento, sin el CSV al lado).
-2. Bloque **"Plan semanal"** (Pieza 1 + Pieza 2) — tarjeta propia, mismo
+2. Bloque **"Plan semanal"** (Piezas 1, 1b y 2) — tarjeta propia, mismo
    lenguaje visual que las session-cards (fondo `#13151F`, borde `#1E2130`,
    radio `11px`), con label `PLAN SEMANAL` estilo `.field-label`. Siempre
    visible, incluso con 0 rutinas.
@@ -83,18 +90,49 @@ openGym en `plan-share.js` (import nunca pisa lo existente, IDs propios).
 
 Dentro del bloque "Plan semanal", una fila de 7 celdas (L a D, orden visual
 fijo). Cada celda muestra la abreviatura del día + nombre corto de la
-rutina asignada (o "—"). El día de **hoy** se resalta en `#FFD200`.
+rutina **efectiva** de ese día (`effectiveRoutineId(iso)`: mira primero
+`hierro_day_overrides[iso]`, si no hay entrada cae a `hierro_week[weekday]`)
+— o "—" si ninguna de las dos tiene algo. El día de **hoy** se resalta en
+`#FFD200`. Un día con override activo (Pieza 1b) suma una marca chica
+("· reprogramado", mismo patrón que ya usa openGym) para que se note que
+no es lo que dice la plantilla habitual.
 
 **Tocar una celda:**
-- **Si ese día ya tiene rutina asignada** → arranca la sesión directo
+- **Si ese día ya tiene rutina efectiva** → arranca la sesión directo
   (mismo camino que `newSessionFromRoutine`, Pieza 3), 1 toque, sin hoja
   intermedia.
-- **Si no tiene rutina asignada** → abre el flujo de "+ Nueva rutina"
-  (Pieza 3), con ese día ya pre-marcado para asignarla al guardar.
+- **Si no tiene rutina efectiva** → abre el flujo de "+ Nueva rutina"
+  (Pieza 3), con ese día ya pre-marcado para asignarla a la plantilla
+  semanal al guardar.
 
 Este comportamiento es independiente de "+ Sesión libre": tocar la semana
 nunca es requisito para loguear freestyle, y "+ Sesión libre" nunca abre ni
 menciona la semana.
+
+## Pieza 1b — Reprogramar un día puntual ("solo hoy")
+
+Mantener presionada una celda (long-press, ~500ms — no compite con el toque
+normal de arrancar) abre una hoja, sin importar si ese día tiene rutina
+efectiva o no:
+
+> **¿Enfermo, te salteaste un día o querés algo distinto? Elegí qué
+> entrenar en su lugar.**
+
+Lista debajo: todas las rutinas guardadas + **"Descanso"** (marca ese día
+como `"rest"`, sin sesión sugerida). Elegir una opción muestra dos botones
+para confirmar el alcance del cambio:
+
+- **"Solo hoy"** (acción principal, la más común) → escribe únicamente en
+  `hierro_day_overrides[iso]`. La plantilla semanal (`hierro_week`) no se
+  toca — el próximo {día de la semana} vuelve a ser lo de siempre.
+- **"Cambiar todos los {día de la semana}"** (acción secundaria, estilo
+  link, menos prominente) → escribe en `hierro_week[weekday]` en vez de
+  `hierro_day_overrides`, cambiando la plantilla recurrente de ahí en más.
+  Si esa fecha puntual ya tenía un override propio, se limpia (pasa a
+  seguir la plantilla, que es la que se acaba de cambiar).
+
+Esta hoja aplica a cualquier día de la tira, no solo a hoy — sirve igual
+para reprogramar un día pasado (corregir un error de carga) o futuro.
 
 ## Pieza 2 — Botones del bloque "Plan semanal"
 
@@ -193,6 +231,17 @@ Sin test runner (HTML estático). Verificación manual en browser:
    ninguna referencia a rutinas en el camino.
 6. **Borrar rutina asignada**: confirmar que el día vuelve a "—" y que una
    sesión pasada que la usó conserva su nombre en el historial.
+6b. **Reprogramar "solo hoy"**: con un día que ya tiene rutina de la
+   plantilla, mantener presionado, elegir otra rutina (o "Descanso") y
+   "Solo hoy". Confirmar que la celda muestra la marca "reprogramado" y la
+   nueva rutina/descanso, pero que `hierro_week` no cambió — recargar la
+   página y confirmar que otro día con el mismo día de semana (ej. la
+   semana que viene, cambiando la fecha del sistema o revisando el cálculo
+   a mano) sigue mostrando la rutina original de la plantilla.
+6c. **Cambiar la plantilla desde el long-press**: repetir el paso anterior
+   pero eligiendo "Cambiar todos los {día}". Confirmar que `hierro_week`
+   cambió para ese día de semana, y que si esa fecha tenía un override
+   propio de un paso previo, se limpió.
 7. **Exportar/importar rutina individual**: exportar una rutina, confirmar
    el JSON descargado tiene la marca `hierro_routine`. Importarla de nuevo
    (mismo archivo) y confirmar que se agrega como rutina NUEVA (no
