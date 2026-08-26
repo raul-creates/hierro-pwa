@@ -252,7 +252,10 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
     <div class="header">
       <button class="btn-back" onclick="showLog()">←</button>
       <span class="header-title">Rutinas</span>
-      <button class="btn-primary" style="margin-left:auto" onclick="newRoutine(null)">+ Rutina</button>
+      <div class="header-actions">
+        <button class="btn-ghost" onclick="showTemplatePicker()">Plantillas</button>
+        <button class="btn-primary" onclick="newRoutine(null)">+ Rutina</button>
+      </div>
     </div>
     <div class="editor-content" id="routines-list"></div>
   </div>
@@ -337,6 +340,14 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="picker-overlay" id="template-overlay">
+  <div class="header" style="border-bottom:none">
+    <button class="btn-back" onclick="closeTemplateOverlay()">←</button>
+    <span class="header-title">Elegir plantilla</span>
+  </div>
+  <div class="picker-body" id="template-overlay-body"></div>
+</div>
 
 <div class="picker-overlay" id="day-overlay">
   <div class="header" style="border-bottom:none">
@@ -714,6 +725,81 @@ function saveSession(){
 const WEEKDAY_LETTERS = ['D','L','M','M','J','V','S']; // indexed by Date.getDay()
 const WEEK_LAYOUT = [1,2,3,4,5,6,0]; // Monday..Sunday, values are Date.getDay()
 const WEEKDAY_NAMES = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+
+const STARTER_TEMPLATES = [
+  { id:'ppl', label:'Push / Pull / Legs', routines:[
+    {name:'Push', exercises:[
+      {exId:'0025',cat:'chest',sets:4,reps:'8'},
+      {exId:'0047',cat:'chest',sets:3,reps:'10'},
+      {exId:'0426',cat:'shoulders',sets:3,reps:'10'},
+      {exId:'0334',cat:'shoulders',sets:3,reps:'12'},
+      {exId:'0241',cat:'arms',sets:3,reps:'12'},
+    ]},
+    {name:'Pull', exercises:[
+      {exId:'0652',cat:'back',sets:4,reps:'8'},
+      {exId:'0027',cat:'back',sets:4,reps:'8'},
+      {exId:'2330',cat:'back',sets:3,reps:'10'},
+      {exId:'0861',cat:'back',sets:3,reps:'12'},
+      {exId:'0313',cat:'arms',sets:3,reps:'12'},
+    ]},
+    {name:'Legs', exercises:[
+      {exId:'0043',cat:'legs',sets:4,reps:'8'},
+      {exId:'0085',cat:'legs',sets:3,reps:'10'},
+      {exId:'0739',cat:'legs',sets:3,reps:'12'},
+      {exId:'0585',cat:'legs',sets:3,reps:'12'},
+      {exId:'1372',cat:'legs',sets:4,reps:'15'},
+    ]},
+  ]},
+  { id:'upperlower', label:'Upper / Lower', routines:[
+    {name:'Upper', exercises:[
+      {exId:'0025',cat:'chest',sets:4,reps:'8'},
+      {exId:'0027',cat:'back',sets:4,reps:'8'},
+      {exId:'0426',cat:'shoulders',sets:3,reps:'10'},
+      {exId:'2330',cat:'back',sets:3,reps:'10'},
+      {exId:'0313',cat:'arms',sets:3,reps:'12'},
+      {exId:'0241',cat:'arms',sets:3,reps:'12'},
+    ]},
+    {name:'Lower', exercises:[
+      {exId:'0043',cat:'legs',sets:4,reps:'8'},
+      {exId:'0085',cat:'legs',sets:3,reps:'10'},
+      {exId:'0739',cat:'legs',sets:3,reps:'12'},
+      {exId:'0586',cat:'legs',sets:3,reps:'12'},
+      {exId:'1372',cat:'legs',sets:4,reps:'15'},
+    ]},
+  ]},
+  { id:'fullbody', label:'Full Body', routines:[
+    {name:'Full Body', exercises:[
+      {exId:'0043',cat:'legs',sets:3,reps:'8'},
+      {exId:'0025',cat:'chest',sets:3,reps:'8'},
+      {exId:'0027',cat:'back',sets:3,reps:'8'},
+      {exId:'0426',cat:'shoulders',sets:3,reps:'10'},
+      {exId:'0085',cat:'legs',sets:3,reps:'10'},
+      {exId:'0212',cat:'waist',sets:3,reps:'15'},
+    ]},
+  ]},
+];
+function showTemplatePicker(){
+  const body=document.getElementById('template-overlay-body');
+  body.innerHTML=STARTER_TEMPLATES.map(t=>
+    `<div style="padding:12px 14px;cursor:pointer;border-bottom:1px solid #1E2130" onclick="loadTemplate('${t.id}')">
+      <div style="font-weight:700">${t.label}</div>
+      <div style="color:#9195A3;font-size:12px;margin-top:2px">${t.routines.length} rutina${t.routines.length!==1?'s':''}</div>
+    </div>`
+  ).join('');
+  document.getElementById('template-overlay').classList.add('active');
+}
+function closeTemplateOverlay(){ document.getElementById('template-overlay').classList.remove('active'); }
+function loadTemplate(id){
+  const t=STARTER_TEMPLATES.find(x=>x.id===id); if(!t)return;
+  t.routines.forEach(r=>{
+    routines.push({id:uid(), name:r.name, exercises:r.exercises.map(e=>({...e}))});
+  });
+  saveRoutines();
+  closeTemplateOverlay();
+  renderRoutinesList();
+  renderPlanSemanal();
+  toast(`Plantilla "${t.label}" cargada`);
+}
 
 function isoOffset(daysFromToday){
   const d=new Date(); d.setDate(d.getDate()+daysFromToday); return d.toISOString().slice(0,10);
