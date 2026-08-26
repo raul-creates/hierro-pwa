@@ -737,6 +737,8 @@ function renderPlanSemanal(){
     <div class="week-strip">${cellsHtml}</div>
     <div class="plan-buttons" id="plan-buttons">
       <button onclick="showRoutines()">+ Nueva rutina</button>
+      <button onclick="importRoutineFile()">Importar rutina</button>
+      <button onclick="exportRoutinePrompt()">Exportar rutina</button>
     </div>
   </div>`;
 }
@@ -804,21 +806,26 @@ function onWeekDayTap(iso){
   newRoutine(wd);
 }
 
-function showRoutines(){ renderRoutinesList(); showView('view-routines'); }
+function showRoutines(){ routinePickMode=null; renderRoutinesList(); showView('view-routines'); }
 
+let routinePickMode = null;
 function renderRoutinesList(){
   const el=document.getElementById('routines-list');
   if(!routines.length){ el.innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin rutinas guardadas</h3><p>Creá una con "+ Rutina"</p></div>`; return; }
-  el.innerHTML=routines.map(r=>`
-    <div class="session-card">
+  const hint=routinePickMode==='export'?`<div class="field-label" style="margin-bottom:8px">Elegí cuál exportar</div>`:'';
+  el.innerHTML=hint+routines.map(r=>{
+    const tapFn=routinePickMode==='export'?`exportRoutine('${r.id}')`:`newSessionFromRoutine(routines.find(x=>x.id==='${r.id}'))`;
+    const actions=routinePickMode?'':`<div class="card-actions"><button onclick="event.stopPropagation();editRoutineFn('${r.id}')">✏️</button><button onclick="event.stopPropagation();deleteRoutine('${r.id}')">🗑️</button></div>`;
+    return `<div class="session-card">
       <div class="card-top">
-        <div onclick="newSessionFromRoutine(routines.find(x=>x.id==='${r.id}'))" style="cursor:pointer;flex:1">
+        <div onclick="${tapFn}" style="cursor:pointer;flex:1">
           <div class="card-date">${r.name}</div>
           <div class="card-meta">${r.exercises.length} ejercicio${r.exercises.length!==1?'s':''}</div>
         </div>
-        <div class="card-actions"><button onclick="event.stopPropagation();editRoutineFn('${r.id}')">✏️</button><button onclick="event.stopPropagation();deleteRoutine('${r.id}')">🗑️</button></div>
+        ${actions}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function newRoutine(weekday){
@@ -896,6 +903,47 @@ function deleteRoutine(id){
   renderRoutinesList();
   renderPlanSemanal();
   toast('Rutina eliminada');
+}
+function exportRoutinePrompt(){
+  if(!routines.length){ toast('No hay rutinas guardadas'); return; }
+  if(routines.length===1){ exportRoutine(routines[0].id); return; }
+  routinePickMode='export';
+  renderRoutinesList();
+  showView('view-routines');
+}
+function exportRoutine(id){
+  const r=routines.find(x=>x.id===id); if(!r)return;
+  const data={hierro_routine:1, name:r.name, exercises:r.exercises};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`rutina-${r.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')||'sin-nombre'}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  routinePickMode=null;
+  showLog();
+}
+function importRoutineFile(){
+  const input=document.createElement('input');
+  input.type='file'; input.accept='application/json,.json';
+  input.onchange=e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      let data;
+      try{ data=JSON.parse(reader.result); }catch{ toast('Archivo inválido'); return; }
+      if(!data || data.hierro_routine!==1 || !Array.isArray(data.exercises)){ toast('No es un archivo de rutina válido'); return; }
+      const cleanExercises=data.exercises.filter(ex=>EXERCISES.some(x=>x.id===ex.exId)).map(({exId,cat,sets,reps})=>({exId,cat,sets:sets||3,reps:reps||''}));
+      if(!cleanExercises.length){ toast('Ningún ejercicio del archivo es válido'); return; }
+      const imported={id:uid(), name:data.name||'Rutina importada', exercises:cleanExercises};
+      routines.push(imported);
+      saveRoutines();
+      renderPlanSemanal();
+      toast('Rutina importada: '+imported.name);
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 function newSessionFromRoutine(routine){
   if(!routine)return;
