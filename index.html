@@ -193,6 +193,19 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .toast{position:fixed;bottom:68px;left:50%;transform:translateX(-50%);background:#FFD200;color:#0F1117;padding:8px 18px;border-radius:18px;font-size:14px;font-weight:700;opacity:0;transition:opacity 0.2s;pointer-events:none;z-index:300;white-space:nowrap}
 .toast.show{opacity:1}
 
+/* ── PLAN SEMANAL ── */
+.plan-card{background:#13151F;border:1px solid #1E2130;border-radius:11px;padding:12px 13px;margin:12px 14px 0}
+.week-strip{display:flex;gap:5px;margin:9px 0 11px}
+.week-day{flex:1;text-align:center;border-radius:8px;padding:7px 2px;background:#1A1D2E;cursor:pointer;border:none;font-family:inherit}
+.week-day .wd-letter{font-size:10px;font-weight:700;letter-spacing:0.3px;color:#9195A3}
+.week-day .wd-name{font-size:10px;font-weight:600;margin-top:3px;color:#6B6E7A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.week-day.has-routine .wd-name{color:#FFD200}
+.week-day.today{background:#FFD200}
+.week-day.today .wd-letter,.week-day.today .wd-name{color:#0F1117}
+.wd-ovr{color:#FF8A00}
+.plan-buttons{display:flex;gap:8px}
+.plan-buttons button{flex:1;background:#1A1D2E;border:1px solid #252840;border-radius:8px;color:#9195A3;padding:9px 0;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+
 /* ── PICKER ── */
 .picker-overlay{position:fixed;inset:0;background:#0F1117;z-index:400;display:none;flex-direction:column;max-width:480px;margin:0 auto}
 .picker-overlay.active{display:flex}
@@ -220,10 +233,41 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
       <div class="logo-block"><div class="wordmark">HIERRO</div><div class="sub" id="log-quote"></div></div>
       <div class="header-actions">
         <button class="btn-ghost" onclick="exportCSV()">CSV</button>
-        <button class="btn-primary" onclick="newSession()">+ Sesión</button>
+        <button class="btn-primary" onclick="newSession()">+ Sesión libre</button>
       </div>
     </div>
+    <div id="plan-semanal"></div>
     <div class="log-content" id="log-content"></div>
+  </div>
+
+  <!-- ── ROUTINES ── -->
+  <div class="view" id="view-routines">
+    <div class="header">
+      <button class="btn-back" onclick="showLog()">←</button>
+      <span class="header-title">Rutinas</span>
+      <button class="btn-primary" style="margin-left:auto" onclick="newRoutine(null)">+ Rutina</button>
+    </div>
+    <div class="editor-content" id="routines-list"></div>
+  </div>
+
+  <!-- ── ROUTINE EDITOR ── -->
+  <div class="view" id="view-routine-edit">
+    <div class="header">
+      <button class="btn-back" onclick="cancelRoutineEdit()">←</button>
+      <span class="header-title" id="routine-editor-title">Nueva rutina</span>
+    </div>
+    <div class="editor-content">
+      <div class="field-group">
+        <div class="field-label">Nombre</div>
+        <input type="text" id="routine-name" placeholder="Ej. Push, Pull, Piernas" oninput="validateRoutineSave()" style="width:100%;background:#1A1D2E;border:1px solid #252840;border-radius:7px;color:#fff;padding:8px 9px;font-size:15px;outline:none">
+      </div>
+      <div id="routine-exercises-container"></div>
+      <button class="btn-add-ex" onclick="addRoutineExercise()">+ Ejercicio</button>
+    </div>
+    <div class="editor-footer">
+      <button class="btn-cancel" onclick="cancelRoutineEdit()">Cancelar</button>
+      <button class="btn-save" id="btn-routine-save" onclick="saveRoutine()" disabled>Guardar rutina</button>
+    </div>
   </div>
 
   <!-- ── EDITOR ── -->
@@ -434,6 +478,8 @@ let gFiltered = [];
 let gChartMetric = 'max';
 let pickerExBlockId = '';
 let pickerSearch = '';
+let editRoutine = null;
+let editRoutinePreassignDay = null;
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
@@ -457,6 +503,7 @@ async function init() {
   document.getElementById('loader').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('log-quote').textContent = randomQuote();
+  renderPlanSemanal();
   renderLog();
   buildGuideGroups();
   applyGuideFilter();
@@ -491,7 +538,7 @@ function showView(id){
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
 }
-function showLog(){showView('view-log');setActiveNav('bnav-log');renderLog();document.getElementById('log-quote').textContent=randomQuote();}
+function showLog(){showView('view-log');setActiveNav('bnav-log');renderPlanSemanal();renderLog();document.getElementById('log-quote').textContent=randomQuote();}
 function showGuide(){showView('view-guide');setActiveNav('bnav-guide');}
 function showStats(){showView('view-stats');setActiveNav('bnav-stats');renderStats();}
 function newSession(){
@@ -581,11 +628,11 @@ function renderExercises(){
   document.getElementById('exercises-container').innerHTML=editSession.exercises.map(ex=>buildExBlock(ex)).join('');
   validateSave();
 }
-function buildSetRow(exId,s,si,disabled){
+function buildSetRow(exId,s,si,disabled,repsPlaceholder){
   return `<div class="set-row">
       <span class="set-dot">●</span>
       <div class="set-iw"><input type="number" inputmode="decimal" placeholder="0" value="${s.weight}" onchange="updateSet('${exId}',${si},'weight',this.value)"><span class="set-unit">kg</span></div>
-      <div class="set-iw"><input type="number" inputmode="numeric" placeholder="0" value="${s.reps}" onchange="updateSet('${exId}',${si},'reps',this.value)"><span class="set-unit">reps</span></div>
+      <div class="set-iw"><input type="number" inputmode="numeric" placeholder="${repsPlaceholder||'0'}" value="${s.reps}" onchange="updateSet('${exId}',${si},'reps',this.value)"><span class="set-unit">reps</span></div>
       <button class="btn-rm-set" onclick="removeSet('${exId}',${si})" ${disabled?'disabled style="opacity:0.2"':''}>✕</button>
     </div>`;
 }
@@ -597,7 +644,7 @@ function buildExBlock(ex){
 
   const groupOpts=GROUPS.map(g=>`<option value="${g.id}"${ex.cat===g.id?' selected':''}>${g.label}</option>`).join('');
 
-  const setsHTML=ex.sets.map((s,si)=>buildSetRow(ex.id,s,si,ex.sets.length===1)).join('');
+  const setsHTML=ex.sets.map((s,si)=>buildSetRow(ex.id,s,si,ex.sets.length===1,si===0?ex.targetReps:null)).join('');
 
   return`<div class="ex-block" id="exblock-${ex.id}">
     <div class="ex-block-top">
@@ -645,6 +692,161 @@ function saveSession(){
   saveLog();toast('Sesión guardada');showLog();
 }
 
+// ── ROUTINES ─────────────────────────────────────────────────────────────────
+const WEEKDAY_LETTERS = ['D','L','M','M','J','V','S']; // indexed by Date.getDay()
+const WEEK_LAYOUT = [1,2,3,4,5,6,0]; // Monday..Sunday, values are Date.getDay()
+const WEEKDAY_NAMES = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+
+function isoOffset(daysFromToday){
+  const d=new Date(); d.setDate(d.getDate()+daysFromToday); return d.toISOString().slice(0,10);
+}
+function emptyRoutineEx(){return{id:uid(),cat:'',exId:'',sets:3,reps:''};}
+
+function renderPlanSemanal(){
+  const el=document.getElementById('plan-semanal'); if(!el) return;
+  const todayIso=todayISO();
+  const todayMonFirst=(new Date().getDay()+6)%7;
+  let cellsHtml='';
+  WEEK_LAYOUT.forEach((wd,visualIdx)=>{
+    const diff=visualIdx-todayMonFirst;
+    const iso=isoOffset(diff);
+    const effId=effectiveRoutineId(iso);
+    const isRest=effId==='rest';
+    const routine=(!isRest && effId) ? routines.find(r=>r.id===effId) : null;
+    const hasOverride=Object.prototype.hasOwnProperty.call(dayOverrides, iso);
+    const isToday=iso===todayIso;
+    const label=isRest?'Descanso':(routine?routine.name:'—');
+    const cls=['week-day'];
+    if(isToday)cls.push('today');
+    if(routine||isRest)cls.push('has-routine');
+    cellsHtml+=`<button class="${cls.join(' ')}" onclick="onWeekDayTap('${iso}')">
+      <div class="wd-letter">${WEEKDAY_LETTERS[wd]}</div>
+      <div class="wd-name">${label}${hasOverride?' <span class="wd-ovr">·rep</span>':''}</div>
+    </button>`;
+  });
+  el.innerHTML=`<div class="plan-card">
+    <div class="field-label">Plan semanal</div>
+    <div class="week-strip">${cellsHtml}</div>
+    <div class="plan-buttons" id="plan-buttons">
+      <button onclick="showRoutines()">+ Nueva rutina</button>
+    </div>
+  </div>`;
+}
+
+function onWeekDayTap(iso){
+  const effId=effectiveRoutineId(iso);
+  if(effId==='rest'){ toast('Día de descanso'); return; }
+  const routine=effId?routines.find(r=>r.id===effId):null;
+  if(routine){ newSessionFromRoutine(routine); return; }
+  const wd=new Date(iso+'T12:00:00').getDay();
+  newRoutine(wd);
+}
+
+function showRoutines(){ renderRoutinesList(); showView('view-routines'); }
+
+function renderRoutinesList(){
+  const el=document.getElementById('routines-list');
+  if(!routines.length){ el.innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin rutinas guardadas</h3><p>Creá una con "+ Rutina"</p></div>`; return; }
+  el.innerHTML=routines.map(r=>`
+    <div class="session-card">
+      <div class="card-top">
+        <div onclick="newSessionFromRoutine(routines.find(x=>x.id==='${r.id}'))" style="cursor:pointer;flex:1">
+          <div class="card-date">${r.name}</div>
+          <div class="card-meta">${r.exercises.length} ejercicio${r.exercises.length!==1?'s':''}</div>
+        </div>
+        <div class="card-actions"><button onclick="event.stopPropagation();editRoutineFn('${r.id}')">✏️</button><button onclick="event.stopPropagation();deleteRoutine('${r.id}')">🗑️</button></div>
+      </div>
+    </div>`).join('');
+}
+
+function newRoutine(weekday){
+  editRoutine={id:uid(), name:'', exercises:[emptyRoutineEx()]};
+  editRoutinePreassignDay=weekday;
+  document.getElementById('routine-editor-title').textContent='Nueva rutina';
+  document.getElementById('routine-name').value='';
+  renderRoutineExercises();
+  showView('view-routine-edit');
+}
+function editRoutineFn(id){
+  const r=routines.find(x=>x.id===id); if(!r)return;
+  editRoutine={id:r.id, name:r.name, exercises:r.exercises.map(e=>({id:uid(),...e}))};
+  editRoutinePreassignDay=null;
+  document.getElementById('routine-editor-title').textContent='Editar rutina';
+  document.getElementById('routine-name').value=r.name;
+  renderRoutineExercises();
+  showView('view-routine-edit');
+}
+function cancelRoutineEdit(){ editRoutinePreassignDay!=null ? showLog() : showRoutines(); }
+
+function renderRoutineExercises(){
+  document.getElementById('routine-exercises-container').innerHTML=editRoutine.exercises.map(ex=>buildRoutineExBlock(ex)).join('');
+  validateRoutineSave();
+}
+function buildRoutineExBlock(ex){
+  const canRm=editRoutine.exercises.length>1;
+  const exData=EXERCISES.find(e=>e.id===ex.exId);
+  const groupOpts=GROUPS.map(g=>`<option value="${g.id}"${ex.cat===g.id?' selected':''}>${g.label}</option>`).join('');
+  return`<div class="ex-block" id="rexblock-${ex.id}">
+    <div class="ex-block-top">
+      <div class="ex-selectors">
+        <select class="step-select${!ex.cat?' ph':''}" onchange="updateRoutineExCat('${ex.id}',this.value)">
+          <option value="">— Grupo muscular —</option>${groupOpts}
+        </select>
+        ${ex.cat?`<button type="button" class="step-select picker-trigger${!ex.exId?' ph':''}" onclick="openPicker('${ex.id}','routine')">${exData?`<span class="picker-trigger-thumb"><img src="${RAW+exData.image}" loading="lazy" onerror="this.style.display='none'"></span><span>${esName(exData)}</span>`:'— Ejercicio —'}</button>`:''}
+      </div>
+      <button class="btn-remove-ex" onclick="removeRoutineExercise('${ex.id}')" ${!canRm?'disabled style="color:#1E2130"':''}>✕</button>
+    </div>
+    <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>Sets</span><span>Reps objetivo</span><span class="col-x"></span></div>
+    <div class="set-row">
+      <span class="set-dot">●</span>
+      <div class="set-iw"><input type="number" inputmode="numeric" placeholder="3" value="${ex.sets||''}" onchange="updateRoutineField('${ex.id}','sets',this.value)"></div>
+      <div class="set-iw"><input type="text" placeholder="ej. 8-10" value="${ex.reps||''}" onchange="updateRoutineField('${ex.id}','reps',this.value)"></div>
+      <span class="col-x"></span>
+    </div>
+  </div>`;
+}
+function updateRoutineExCat(id,cat){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.cat=cat;ex.exId='';renderRoutineExercises();}
+function updateRoutineExId(id,val){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.exId=val;validateRoutineSave();}
+function updateRoutineField(id,field,val){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex[field]=field==='sets'?(parseInt(val,10)||0):val;}
+function addRoutineExercise(){editRoutine.exercises.push(emptyRoutineEx());renderRoutineExercises();setTimeout(()=>{const b=document.querySelectorAll('#routine-exercises-container .ex-block');if(b.length)b[b.length-1].scrollIntoView({behavior:'smooth'});},50);}
+function removeRoutineExercise(id){if(editRoutine.exercises.length<=1)return;editRoutine.exercises=editRoutine.exercises.filter(e=>e.id!==id);renderRoutineExercises();}
+function validateRoutineSave(){
+  const name=document.getElementById('routine-name')?.value.trim();
+  document.getElementById('btn-routine-save').disabled=!(editRoutine && name && editRoutine.exercises.every(e=>e.exId));
+}
+function saveRoutine(){
+  const name=document.getElementById('routine-name').value.trim();
+  const clean={id:editRoutine.id, name, exercises:editRoutine.exercises.map(({cat,exId,sets,reps})=>({cat,exId,sets:sets||3,reps:reps||''}))};
+  const idx=routines.findIndex(r=>r.id===clean.id);
+  if(idx>=0) routines[idx]=clean; else routines.push(clean);
+  saveRoutines();
+  if(editRoutinePreassignDay!=null){ week[String(editRoutinePreassignDay)]=clean.id; saveWeek(); }
+  toast('Rutina guardada');
+  renderPlanSemanal();
+  editRoutinePreassignDay!=null ? showLog() : showRoutines();
+}
+function deleteRoutine(id){
+  if(!confirm('¿Eliminar esta rutina?'))return;
+  routines=routines.filter(r=>r.id!==id);
+  saveRoutines();
+  Object.keys(week).forEach(k=>{if(week[k]===id) week[k]=null;});
+  saveWeek();
+  renderRoutinesList();
+  renderPlanSemanal();
+  toast('Rutina eliminada');
+}
+function newSessionFromRoutine(routine){
+  if(!routine)return;
+  editSession={id:uid(), date:todayISO(), routineId:routine.id, routineName:routine.name,
+    exercises:routine.exercises.map(re=>({id:uid(), cat:re.cat, exId:re.exId, targetReps:re.reps||'', sets:Array.from({length:re.sets||1},()=>emptySet())}))};
+  document.getElementById('editor-title').textContent='Nueva sesión';
+  document.getElementById('session-date').value=editSession.date;
+  renderExercises();
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-edit').classList.add('active');
+  window.scrollTo(0,0);
+}
+
 // ── EXERCISE PICKER ──────────────────────────────────────────────────────────
 function matchesTokens(ex, query){
   if(!query) return true;
@@ -666,7 +868,9 @@ function recentExercisesForCat(cat, limit){
   }
   return out;
 }
-function openPicker(exBlockId){
+let pickerMode = 'session';
+function openPicker(exBlockId, mode){
+  pickerMode = mode || 'session';
   pickerExBlockId=exBlockId;
   pickerSearch='';
   document.getElementById('picker-search-input').value='';
@@ -681,7 +885,7 @@ function filterPicker(){
   renderPickerBody();
 }
 function renderPickerBody(){
-  const block=editSession.exercises.find(e=>e.id===pickerExBlockId);
+  const block=(pickerMode==='routine'?editRoutine:editSession).exercises.find(e=>e.id===pickerExBlockId);
   if(!block)return;
   const cat=block.cat;
   const body=document.getElementById('picker-body');
@@ -714,8 +918,8 @@ function renderPickerBody(){
   body.innerHTML=html;
 }
 function selectPickerExercise(exId){
-  updateExId(pickerExBlockId, exId);
-  renderExercises();
+  if(pickerMode==='routine'){ updateRoutineExId(pickerExBlockId, exId); renderRoutineExercises(); }
+  else { updateExId(pickerExBlockId, exId); renderExercises(); }
   closePicker();
 }
 
