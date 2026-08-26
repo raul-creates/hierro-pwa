@@ -447,6 +447,7 @@ async function init() {
   }
   document.getElementById('loader').style.display='none';
   document.getElementById('app').style.display='block';
+  document.getElementById('log-quote').textContent = randomQuote();
   renderLog();
   buildGuideGroups();
   applyGuideFilter();
