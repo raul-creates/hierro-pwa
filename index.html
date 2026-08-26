@@ -300,6 +300,9 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 const RAW = 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/';
 const STORAGE_KEY = 'hierro_log_v3';
 const EX_CACHE_KEY = 'hierro_ex_cache_v1';
+const ROUTINES_KEY = 'hierro_routines';
+const WEEK_KEY = 'hierro_week';
+const DAY_OVERRIDES_KEY = 'hierro_day_overrides';
 
 // ── CATEGORY / SUBGROUP CONFIG ─────────────────────────────────────────────
 
@@ -419,6 +422,9 @@ function randomQuote(){return QUOTES[Math.floor(Math.random()*QUOTES.length)];}
 let EXERCISES = [];
 let log = [];
 let editSession = null;
+let routines = [];
+let week = {};
+let dayOverrides = {};
 
 let gGroup = 'arms';
 let gSubgroup = 'all';
@@ -433,6 +439,9 @@ let pickerSearch = '';
 async function init() {
   document.getElementById('loader-quote').textContent = randomQuote();
   log = loadLog();
+  routines = loadRoutines();
+  week = loadWeek();
+  dayOverrides = loadDayOverrides();
   try { const r = await fetch('./es-names.json'); ES_NAMES_MAP = await r.json(); } catch(e){}
   try { const c=sessionStorage.getItem(EX_CACHE_KEY); if(c) EXERCISES=JSON.parse(c); } catch(e){}
   if (!EXERCISES.length) {
@@ -455,6 +464,17 @@ async function init() {
 
 function loadLog(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch{return[];}}
 function saveLog(){localStorage.setItem(STORAGE_KEY,JSON.stringify(log));}
+function loadRoutines(){try{return JSON.parse(localStorage.getItem(ROUTINES_KEY))||[];}catch{return[];}}
+function saveRoutines(){localStorage.setItem(ROUTINES_KEY,JSON.stringify(routines));}
+function loadWeek(){try{return JSON.parse(localStorage.getItem(WEEK_KEY))||{};}catch{return{};}}
+function saveWeek(){localStorage.setItem(WEEK_KEY,JSON.stringify(week));}
+function loadDayOverrides(){try{return JSON.parse(localStorage.getItem(DAY_OVERRIDES_KEY))||{};}catch{return{};}}
+function saveDayOverrides(){localStorage.setItem(DAY_OVERRIDES_KEY,JSON.stringify(dayOverrides));}
+function effectiveRoutineId(iso){
+  if(Object.prototype.hasOwnProperty.call(dayOverrides, iso)) return dayOverrides[iso];
+  const wd=new Date(iso+'T12:00:00').getDay();
+  return week[String(wd)] || null;
+}
 function uid(){return Math.random().toString(36).slice(2,9);}
 function todayISO(){return new Date().toISOString().slice(0,10);}
 function emptySet(){return{id:uid(),weight:'',reps:''};}
