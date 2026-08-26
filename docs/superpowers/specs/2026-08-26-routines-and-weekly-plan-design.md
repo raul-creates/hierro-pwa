@@ -1,4 +1,4 @@
-# HIERRO — Rutinas opcionales + plan semanal
+# HIERRO — Rutinas opcionales + plan semanal + backup
 
 Fecha: 2026-08-26
 
@@ -12,26 +12,31 @@ cada día que se va, sin plantilla fija.
 Este spec agrega rutinas y plan semanal como una capa **opcional** sobre ese
 flujo, inspirada en cómo lo resuelve openGym (self-hosted training tracker,
 AGPL — revisado como referencia de diseño, sin copiar código directo por la
-licencia). La regla no negociable: si no hay ninguna rutina guardada, el
-comportamiento de HIERRO no cambia ni un pixel respecto a hoy.
+licencia). Se validó el layout con un mockup fiel a los estilos reales de la
+app antes de escribir esta versión del spec.
+
+La regla no negociable, ahora acotada a lo que realmente importa: **"+
+Sesión libre" nunca gana fricción, pase lo que pase con las rutinas** — sigue
+siendo 1 toque, directo al editor en blanco, sin preguntas, exista 0 o 10
+rutinas guardadas.
 
 Quedan afuera de este spec (sub-proyectos separados, a definir después):
 
 - Progresión automática de peso/reps (lo que openGym llama "progression
   engine" — lineal, Greyskull LP, etc.). Las rutinas acá solo guardan un
   objetivo de referencia (texto libre), nunca calculan ni fuerzan un valor.
-- Export/import de rutinas como archivo (JSON compartible, como
-  `plan-share.js` de openGym). Buena idea a futuro, no entra acá.
 - Agrandar la miniatura de ejercicio en la pantalla de carga de sesión
   (pedido suelto, anotado para una iteración de ajustes visuales aparte).
 
 ## Alcance
 
-Se agregan dos claves nuevas a `localStorage`, junto a `STORAGE_KEY` (log)
-ya existente. No se toca el modelo de `log`/sesiones salvo un campo opcional
-nuevo. No se agrega ninguna pestaña al bottom nav — nav queda igual
-(Log / Guía / Stats). Todo sigue en `index.html` (sin build step, sin
-dependencias nuevas), siguiendo el patrón del proyecto.
+Se agregan dos claves nuevas a `localStorage`, junto a `STORAGE_KEY`
+(`hierro_log_v3`) ya existente. No se toca el modelo de `log`/sesiones salvo
+dos campos opcionales nuevos. No se agrega ninguna pestaña al bottom nav —
+nav queda igual (Log / Guía / Stats). Todo sigue en `index.html` (sin build
+step, sin dependencias nuevas), siguiendo el patrón del proyecto. Se elimina
+el botón "CSV" del header y su función `exportCSV()` — reemplazado por el
+backup/restore completo de la Pieza 4 (ver esa pieza para el porqué).
 
 ## Modelo de datos
 
@@ -44,8 +49,8 @@ dependencias nuevas), siguiendo el patrón del proyecto.
 
 // localStorage key: 'hierro_week'
 // { "0": routineId|null, "1": routineId|null, ..., "6": routineId|null }
-// Claves 0-6 = Date.getDay() (0 = domingo), igual convención que el resto
-// del código. Ausencia de clave o null = sin rutina asignada ese día.
+// Claves 0-6 = Date.getDay() (0 = domingo). El layout visual va lunes a
+// domingo (mapeo fijo de posición → índice, no cambia el valor de la clave).
 ```
 
 Las sesiones guardadas (`log`) suman dos campos opcionales:
@@ -59,98 +64,144 @@ Las sesiones guardadas (`log`) suman dos campos opcionales:
 
 `routineName` se guarda como snapshot y no se vuelve a leer de
 `hierro_routines` después: si la rutina se edita o se borra más adelante,
-las sesiones pasadas no cambian ni se rompen. Es exactamente el mismo
-principio que usa openGym en `plan-share.js` (import nunca pisa lo
-existente, ID propios por sesión).
+las sesiones pasadas no cambian ni se rompen. Mismo principio que usa
+openGym en `plan-share.js` (import nunca pisa lo existente, IDs propios).
 
-## Pieza 1 — Tira semanal en el Log
+## Layout general del Log (de arriba hacia abajo)
 
-Arriba de la lista de sesiones (`#log-content`, antes de las session-cards),
-una fila nueva de 7 celdas, una por día de la semana (lunes a domingo, orden
-visual fijo aunque `Date.getDay()` empiece en domingo — mismo mapeo que ya
-resuelve `DAYN`-style helpers en proyectos hermanos).
+1. Header: logo + frase, botón **"+ Sesión libre"** (el `+ Sesión` de hoy,
+   renombrado — mismo botón, mismo comportamiento, sin el CSV al lado).
+2. Bloque **"Plan semanal"** (Pieza 1 + Pieza 2) — tarjeta propia, mismo
+   lenguaje visual que las session-cards (fondo `#13151F`, borde `#1E2130`,
+   radio `11px`), con label `PLAN SEMANAL` estilo `.field-label`. Siempre
+   visible, incluso con 0 rutinas.
+3. Lista de sesiones (como hoy).
+4. Footer nuevo (Pieza 4): backup/restore.
+5. Bottom nav (como hoy).
 
-Cada celda muestra:
-- Abreviatura del día (L M M J V S D).
-- Nombre corto de la rutina asignada ese día de la semana, o "—" si no hay
-  ninguna.
-- El día de **hoy** resaltado (mismo color de acento `#FFD200` que el resto
-  de la UI activa).
+## Pieza 1 — Tira semanal
 
-**Tocar una celda** abre una hoja/overlay chico (reusa el patrón visual del
-picker ya existente) con la lista de rutinas guardadas + una opción
-"Sin rutina", para asignar o limpiar ese día de la semana. Esto solo escribe
-en `hierro_week` — nunca crea ni borra sesiones, nunca fuerza nada.
+Dentro del bloque "Plan semanal", una fila de 7 celdas (L a D, orden visual
+fijo). Cada celda muestra la abreviatura del día + nombre corto de la
+rutina asignada (o "—"). El día de **hoy** se resalta en `#FFD200`.
 
-**Si `hierro_routines` está vacío** (nadie guardó ninguna rutina todavía):
-la tira semanal completa NO se muestra. El Log queda exactamente como hoy.
+**Tocar una celda:**
+- **Si ese día ya tiene rutina asignada** → arranca la sesión directo
+  (mismo camino que `newSessionFromRoutine`, Pieza 3), 1 toque, sin hoja
+  intermedia.
+- **Si no tiene rutina asignada** → abre el flujo de "+ Nueva rutina"
+  (Pieza 3), con ese día ya pre-marcado para asignarla al guardar.
 
-## Pieza 2 — Flujo de "+ Sesión"
+Este comportamiento es independiente de "+ Sesión libre": tocar la semana
+nunca es requisito para loguear freestyle, y "+ Sesión libre" nunca abre ni
+menciona la semana.
 
-**Si `hierro_routines` está vacío**: comportamiento idéntico a hoy — el
-botón "+ Sesión" abre directo el editor en blanco (`newSession()` sin
-cambios). Cero fricción para el uso freestyle actual.
+## Pieza 2 — Botones del bloque "Plan semanal"
 
-**Si hay rutinas guardadas**: "+ Sesión" abre primero una hoja chica con
-opciones, en este orden:
+Debajo de la tira semanal, 3 botones en fila:
 
-1. Si hoy tiene una rutina asignada en `hierro_week` → "Usar {nombre}
-   (hoy)", resaltada como opción principal.
-2. "Elegir otra rutina" → lista el resto de rutinas guardadas.
-3. **"Empezar en blanco"** → siempre presente, nunca oculta ni relegada al
-   fondo sin más. Es la opción que preserva el uso freestyle de hoy.
-4. "Gestionar rutinas" → lleva a la Pieza 3.
+- **"+ Nueva rutina"** → Pieza 3.
+- **"Importar rutina"** → Pieza 5.
+- **"Exportar rutina"** → Pieza 5.
 
-Elegir una rutina llama a una función nueva `newSessionFromRoutine(routine)`
-que arma una sesión igual que `emptySession()`, pero con
-`exercises: routine.exercises.map(re => ({ id: uid(), cat: re.cat, exId:
-re.exId, sets: Array(re.sets || 1).fill(null).map(emptySet) }))` — mismos
-bloques que ya arma el editor hoy, solo pre-poblados. El campo `reps`
-objetivo de la rutina se muestra como placeholder/hint visual en el primer
-input de reps de cada bloque (no se escribe como valor real — el usuario
-sigue cargando lo que hizo ese día). La sesión arranca con
-`routineId`/`routineName` seteados; "Empezar en blanco" arranca ambos en
-`null`, igual que hoy.
+## Pieza 3 — Crear / gestionar rutinas
 
-## Pieza 3 — Gestionar rutinas
+Pantalla nueva (no es una vista del bottom nav — se llega desde "+ Nueva
+rutina" o desde tocar un día vacío de la semana).
 
-Pantalla nueva (no es una vista del bottom nav — se llega solo desde la
-hoja de "+ Sesión", como una vista más del stack tipo `view-edit`).
-
-- Lista de rutinas guardadas: nombre + cantidad de ejercicios, con editar y
-  borrar por ítem.
-- "+ Rutina": pide un nombre, y reusa el picker de ejercicios ya existente
-  del editor de sesiones (mismo overlay, mismo buscador, misma sección
-  "Recientes") para ir agregando ejercicios. Cada ejercicio agregado suma
-  dos campos chicos: sets objetivo (number input) y reps objetivo (text
-  input, placeholder "ej. 8-10").
+- Lista de rutinas guardadas: nombre + cantidad de ejercicios. Tocar una
+  fila de la lista (fuera de los íconos de editar/borrar) arranca una
+  sesión con esa rutina — es la forma de usar una rutina que no está
+  asignada a ningún día de la semana, sin necesidad de un botón aparte.
+- Crear: pide un nombre, y reusa el picker de ejercicios ya existente del
+  editor de sesiones (mismo overlay, buscador, sección "Recientes"). Cada
+  ejercicio agregado suma sets objetivo (number input) y reps objetivo
+  (text input, placeholder "ej. 8-10"). Si se llegó acá tocando un día
+  vacío de la semana, al guardar la rutina queda asignada a ese día
+  automáticamente en `hierro_week`.
+- Elegir una rutina ya guardada (desde la tira semanal o desde la lista de
+  esta pantalla) llama a `newSessionFromRoutine(routine)`: arma una sesión
+  igual que
+  `emptySession()`, pero con `exercises: routine.exercises.map(re => ({ id:
+  uid(), cat: re.cat, exId: re.exId, sets: Array(re.sets || 1).fill(null)
+  .map(emptySet) }))`. El `reps` objetivo se muestra como placeholder en el
+  primer input de reps de cada bloque — nunca como valor cargado. La sesión
+  arranca con `routineId`/`routineName` seteados.
 - Borrar una rutina: si estaba asignada a algún día en `hierro_week`, esos
-  días quedan sin rutina (`null`) — no rompe nada, no hay referencias
-  colgadas. Las sesiones pasadas que la usaron conservan su
-  `routineName` snapshot intacto.
+  días quedan sin rutina (`null`). Las sesiones pasadas que la usaron
+  conservan su `routineName` snapshot intacto — no se rompe nada.
+
+## Pieza 4 — Backup / restore (footer del Log)
+
+Reemplaza al botón "CSV" del header. Dos botones al pie de la pantalla Log,
+debajo de la lista de sesiones: **"Exportar backup"** e **"Importar
+backup"**.
+
+**Exportar backup**: genera y descarga un `.json` con las tres claves de
+`localStorage` completas — `log`, `hierro_routines`, `hierro_week` — más un
+campo `exported` (fecha ISO) y `version` (por si el formato cambia a
+futuro). Es un backup total, pensado para restaurar tal cual, no para abrir
+en Excel (eso ya no lo cubre nada — se elimina `exportCSV()` sin
+reemplazo en ese formato).
+
+**Importar backup**: input de archivo, valida que el JSON tenga la marca
+esperada (`version` presente + las 3 claves con la forma correcta), y
+**reemplaza** `log`, `hierro_routines` y `hierro_week` enteros — a
+diferencia del import de rutinas (Pieza 5), que mergea, este es un
+restore real: pisa lo que había. Por eso pide confirmación explícita antes
+("Esto va a reemplazar todos tus datos actuales por los del backup. ¿Confirmás?")
+con la misma UI de confirmación que ya usa el botón de borrar
+sesión/rutina.
+
+## Pieza 5 — Importar / exportar una rutina individual
+
+Formato de archivo distinto al backup — chico, pensado para compartir o
+guardar UNA rutina aparte (misma idea que `plan-share.js` de openGym, pero
+sin el plan semanal ni los ejercicios custom, que acá no existen).
+
+**Exportar rutina**: si hay más de una guardada, primero pide elegir cuál
+(reusa un picker simple tipo lista); genera un `.json`:
+```js
+// { hierro_routine: 1, name, exercises: [{ exId, cat, sets, reps }] }
+```
+
+**Importar rutina**: input de archivo, valida la marca `hierro_routine`,
+agrega la rutina a `hierro_routines` con un `id` nuevo (nunca pisa una
+existente, nunca toca `hierro_week`) — mergea, no reemplaza. Si un `exId`
+del archivo no existe en el `EXERCISES` cargado actualmente, ese ejercicio
+se descarta de la rutina importada (igual criterio que `parsePlan` de
+openGym) en vez de dejar una referencia rota.
 
 ## Verificación
 
 Sin test runner (HTML estático). Verificación manual en browser:
 
-1. **Estado inicial (sin rutinas)**: confirmar que el Log no muestra tira
-   semanal, y que "+ Sesión" abre directo el editor en blanco — cero
-   diferencia visual/funcional contra el comportamiento actual.
-2. **Crear una rutina**: desde "+ Sesión" → "Gestionar rutinas" → "+
-   Rutina", armar una con 2-3 ejercicios y sets/reps objetivo. Confirmar
-   que aparece en la lista.
-3. **Tira semanal**: confirmar que ahora sí aparece en el Log, con todos los
-   días en "—". Asignar la rutina creada a "hoy", confirmar que la celda de
-   hoy la muestra y queda resaltada.
-4. **"+ Sesión" con plan**: tocar "+ Sesión", confirmar que aparece la hoja
-   con "Usar {rutina} (hoy)" primero, y "Empezar en blanco" siempre visible.
-   Elegir la rutina, confirmar que el editor abre con los ejercicios
-   pre-cargados y el objetivo de reps como placeholder, no como valor fijo.
-   Guardar, confirmar que la session-card en el Log muestra de qué rutina
-   salió.
-5. **Freestyle sigue andando**: con rutinas ya creadas, tocar "+ Sesión" →
-   "Empezar en blanco", confirmar que abre el editor vacío igual que
-   siempre, sin ningún ejercicio pre-cargado.
-6. **Borrar rutina asignada**: borrar una rutina que estaba asignada a un
-   día de la semana, confirmar que esa celda vuelve a "—" y que una sesión
-   pasada que la usó sigue mostrando su nombre en el historial.
+1. **Estado inicial (sin rutinas)**: el bloque "Plan semanal" se muestra
+   igual (semana en "—", los 3 botones visibles) — eso es esperado, ya no
+   se oculta. "+ Sesión libre" sigue abriendo directo el editor en blanco,
+   sin ninguna hoja ni pregunta de por medio.
+2. **Crear rutina desde "+ Nueva rutina"**: armar una con 2-3 ejercicios y
+   sets/reps objetivo. Confirmar que aparece en la lista.
+3. **Crear rutina tocando un día vacío**: tocar un día en "—", confirmar
+   que arranca el mismo flujo de creación y que al guardar ese día queda
+   asignado automáticamente.
+4. **Tocar un día con rutina asignada**: confirmar que arranca la sesión
+   directo (sin hoja intermedia), con los ejercicios precargados y el
+   objetivo de reps como placeholder.
+5. **Freestyle sigue andando**: con rutinas ya creadas, "+ Sesión libre"
+   sigue abriendo el editor vacío, sin ejercicios precargados, sin
+   ninguna referencia a rutinas en el camino.
+6. **Borrar rutina asignada**: confirmar que el día vuelve a "—" y que una
+   sesión pasada que la usó conserva su nombre en el historial.
+7. **Exportar/importar rutina individual**: exportar una rutina, confirmar
+   el JSON descargado tiene la marca `hierro_routine`. Importarla de nuevo
+   (mismo archivo) y confirmar que se agrega como rutina NUEVA (no
+   duplicado silencioso, no reemplazo) — queda una lista con 2 rutinas de
+   igual contenido y nombre, cada una con su propio id.
+8. **Backup completo**: cargar algunas sesiones, rutinas y plan semanal.
+   Exportar backup, confirmar el JSON tiene las 3 claves. Modificar algo
+   (borrar una sesión), importar el backup exportado, confirmar el pedido
+   de confirmación, aceptar, y confirmar que el estado vuelve exactamente
+   al momento del export (sesión borrada reaparece).
+9. **CSV eliminado**: confirmar que el botón "CSV" ya no está en el header
+   y que `exportCSV()` no se llama desde ningún lado.
