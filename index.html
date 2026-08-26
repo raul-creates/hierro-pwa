@@ -618,7 +618,7 @@ function deleteSession(id){
 
 // ── BACKUP / RESTORE ─────────────────────────────────────────────────────────
 function exportBackup(){
-  const data={version:1, exported:new Date().toISOString(), log, hierro_routines:routines, hierro_week:week};
+  const data={version:1, exported:new Date().toISOString(), log, hierro_routines:routines, hierro_week:week, hierro_day_overrides:dayOverrides};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -638,12 +638,13 @@ function importBackupFile(){
     reader.onload=()=>{
       let data;
       try{ data=JSON.parse(reader.result); }catch{ toast('Archivo inválido'); return; }
-      if(!data || !data.version || !Array.isArray(data.log) || !Array.isArray(data.hierro_routines) || typeof data.hierro_week!=='object'){
+      if(!data || !data.version || !Array.isArray(data.log) || !Array.isArray(data.hierro_routines) || (!data.hierro_week || typeof data.hierro_week!=='object' || Array.isArray(data.hierro_week))){
         toast('No es un archivo de backup válido'); return;
       }
       if(!confirm('Esto va a reemplazar todos tus datos actuales por los del backup. ¿Confirmás?')) return;
-      log=data.log; routines=data.hierro_routines; week=data.hierro_week;
-      saveLog(); saveRoutines(); saveWeek();
+      const dayOverridesData = (data.hierro_day_overrides && typeof data.hierro_day_overrides==='object' && !Array.isArray(data.hierro_day_overrides)) ? data.hierro_day_overrides : {};
+      log=data.log; routines=data.hierro_routines; week=data.hierro_week; dayOverrides=dayOverridesData;
+      saveLog(); saveRoutines(); saveWeek(); saveDayOverrides();
       renderLog(); renderPlanSemanal();
       toast('Backup restaurado');
     };
@@ -790,6 +791,7 @@ function showTemplatePicker(){
 }
 function closeTemplateOverlay(){ document.getElementById('template-overlay').classList.remove('active'); }
 function loadTemplate(id){
+  routinePickMode=null;
   const t=STARTER_TEMPLATES.find(x=>x.id===id); if(!t)return;
   t.routines.forEach(r=>{
     routines.push({id:uid(), name:r.name, exercises:r.exercises.map(e=>({...e}))});
@@ -802,7 +804,9 @@ function loadTemplate(id){
 }
 
 function isoOffset(daysFromToday){
-  const d=new Date(); d.setDate(d.getDate()+daysFromToday); return d.toISOString().slice(0,10);
+  const d=new Date();
+  d.setDate(d.getDate()+daysFromToday);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function emptyRoutineEx(){return{id:uid(),cat:'',exId:'',sets:3,reps:''};}
 
@@ -823,7 +827,7 @@ function renderPlanSemanal(){
     const cls=['week-day'];
     if(isToday)cls.push('today');
     if(routine||isRest)cls.push('has-routine');
-    cellsHtml+=`<button class="${cls.join(' ')}" onclick="onWeekDayTap('${iso}')" onmousedown="startLongPress('${iso}')" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress('${iso}')" ontouchend="cancelLongPress()">
+    cellsHtml+=`<button class="${cls.join(' ')}" onclick="onWeekDayTap('${iso}')" onmousedown="startLongPress('${iso}')" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress('${iso}')" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()" ontouchcancel="cancelLongPress()">
       <div class="wd-letter">${WEEKDAY_LETTERS[wd]}</div>
       <div class="wd-name">${label}${hasOverride?' <span class="wd-ovr">·rep</span>':''}</div>
     </button>`;
@@ -840,10 +844,12 @@ function renderPlanSemanal(){
 }
 
 let longPressTimer=null;
+let longPressFired=false;
 let dayOverlayIso='';
 let dayOverlayChoice=null;
 function startLongPress(iso){
-  longPressTimer=setTimeout(()=>openDayOverlay(iso), 500);
+  longPressFired=false;
+  longPressTimer=setTimeout(()=>{longPressFired=true;openDayOverlay(iso);}, 500);
 }
 function cancelLongPress(){
   if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}
@@ -894,6 +900,7 @@ function applyDayOverride(scope){
 }
 
 function onWeekDayTap(iso){
+  if(longPressFired){ longPressFired=false; return; }
   const effId=effectiveRoutineId(iso);
   if(effId==='rest'){ toast('Día de descanso'); return; }
   const routine=effId?routines.find(r=>r.id===effId):null;
@@ -934,7 +941,7 @@ function newRoutine(weekday){
 }
 function editRoutineFn(id){
   const r=routines.find(x=>x.id===id); if(!r)return;
-  editRoutine={id:r.id, name:r.name, exercises:r.exercises.map(e=>({id:uid(),...e}))};
+  editRoutine={id:r.id, name:r.name, exercises:r.exercises.map(e=>({...e,id:uid()}))};
   editRoutinePreassignDay=null;
   document.getElementById('routine-editor-title').textContent='Editar rutina';
   document.getElementById('routine-name').value=r.name;
@@ -996,6 +1003,8 @@ function deleteRoutine(id){
   saveRoutines();
   Object.keys(week).forEach(k=>{if(week[k]===id) week[k]=null;});
   saveWeek();
+  Object.keys(dayOverrides).forEach(k=>{if(dayOverrides[k]===id) delete dayOverrides[k];});
+  saveDayOverrides();
   renderRoutinesList();
   renderPlanSemanal();
   toast('Rutina eliminada');
@@ -1031,7 +1040,9 @@ function importRoutineFile(){
       if(!data || data.hierro_routine!==1 || !Array.isArray(data.exercises)){ toast('No es un archivo de rutina válido'); return; }
       const cleanExercises=data.exercises.filter(ex=>EXERCISES.some(x=>x.id===ex.exId)).map(({exId,cat,sets,reps})=>({exId,cat,sets:sets||3,reps:reps||''}));
       if(!cleanExercises.length){ toast('Ningún ejercicio del archivo es válido'); return; }
-      const imported={id:uid(), name:data.name||'Rutina importada', exercises:cleanExercises};
+      const rawName = typeof data.name==='string' ? data.name.slice(0,60) : '';
+      const cleanName = rawName.replace(/[<>&"]/g,'') || 'Rutina importada';
+      const imported={id:uid(), name:cleanName, exercises:cleanExercises};
       routines.push(imported);
       saveRoutines();
       renderPlanSemanal();
