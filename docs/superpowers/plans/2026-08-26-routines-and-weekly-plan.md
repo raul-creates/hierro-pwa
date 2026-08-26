@@ -970,3 +970,164 @@ Serve and open the app.
 git add index.html
 git commit -m "Replace CSV export with full JSON backup/restore, remove exportCSV"
 ```
+
+---
+
+### Task 6: Starter routine templates (PPL, Upper/Lower, Full Body)
+
+**Files:**
+- Modify: `index.html` (HTML body: "Plantillas" button in `view-routines`, new template-picker overlay; JS: `STARTER_TEMPLATES` data + picker functions)
+
+**Interfaces:**
+- Consumes: `routines`, `saveRoutines`, `renderRoutinesList`, `renderPlanSemanal`, `uid`, `toast` from Tasks 1-2.
+- Produces: `showTemplatePicker()`, `closeTemplateOverlay()`, `loadTemplate(id)`.
+
+Exercise IDs below are independently picked from `hasaneyldrm/exercises-dataset` (the same dataset HIERRO already loads) — not copied from openGym's own starter-plan file, which is AGPL-licensed. Every ID here was verified to exist in the live dataset and to already have a Spanish translation in `es-names.json` before writing this task.
+
+- [ ] **Step 1: Add a "Plantillas" button to the Routines screen header**
+
+Find:
+```html
+  <!-- ── ROUTINES ── -->
+  <div class="view" id="view-routines">
+    <div class="header">
+      <button class="btn-back" onclick="showLog()">←</button>
+      <span class="header-title">Rutinas</span>
+      <button class="btn-primary" style="margin-left:auto" onclick="newRoutine(null)">+ Rutina</button>
+    </div>
+    <div class="editor-content" id="routines-list"></div>
+  </div>
+```
+Replace with:
+```html
+  <!-- ── ROUTINES ── -->
+  <div class="view" id="view-routines">
+    <div class="header">
+      <button class="btn-back" onclick="showLog()">←</button>
+      <span class="header-title">Rutinas</span>
+      <div class="header-actions">
+        <button class="btn-ghost" onclick="showTemplatePicker()">Plantillas</button>
+        <button class="btn-primary" onclick="newRoutine(null)">+ Rutina</button>
+      </div>
+    </div>
+    <div class="editor-content" id="routines-list"></div>
+  </div>
+```
+
+- [ ] **Step 2: Add the template-picker overlay markup**
+
+Find:
+```html
+<div class="picker-overlay" id="day-overlay">
+```
+Replace with:
+```html
+<div class="picker-overlay" id="template-overlay">
+  <div class="header" style="border-bottom:none">
+    <button class="btn-back" onclick="closeTemplateOverlay()">←</button>
+    <span class="header-title">Elegir plantilla</span>
+  </div>
+  <div class="picker-body" id="template-overlay-body"></div>
+</div>
+
+<div class="picker-overlay" id="day-overlay">
+```
+
+- [ ] **Step 3: Add the starter templates and the picker functions**
+
+Right before `function isoOffset(daysFromToday){`, add:
+```js
+const STARTER_TEMPLATES = [
+  { id:'ppl', label:'Push / Pull / Legs', routines:[
+    {name:'Push', exercises:[
+      {exId:'0025',cat:'chest',sets:4,reps:'8'},
+      {exId:'0047',cat:'chest',sets:3,reps:'10'},
+      {exId:'0426',cat:'shoulders',sets:3,reps:'10'},
+      {exId:'0334',cat:'shoulders',sets:3,reps:'12'},
+      {exId:'0241',cat:'arms',sets:3,reps:'12'},
+    ]},
+    {name:'Pull', exercises:[
+      {exId:'0652',cat:'back',sets:4,reps:'8'},
+      {exId:'0027',cat:'back',sets:4,reps:'8'},
+      {exId:'2330',cat:'back',sets:3,reps:'10'},
+      {exId:'0861',cat:'back',sets:3,reps:'12'},
+      {exId:'0313',cat:'arms',sets:3,reps:'12'},
+    ]},
+    {name:'Legs', exercises:[
+      {exId:'0043',cat:'legs',sets:4,reps:'8'},
+      {exId:'0085',cat:'legs',sets:3,reps:'10'},
+      {exId:'0739',cat:'legs',sets:3,reps:'12'},
+      {exId:'0585',cat:'legs',sets:3,reps:'12'},
+      {exId:'1372',cat:'legs',sets:4,reps:'15'},
+    ]},
+  ]},
+  { id:'upperlower', label:'Upper / Lower', routines:[
+    {name:'Upper', exercises:[
+      {exId:'0025',cat:'chest',sets:4,reps:'8'},
+      {exId:'0027',cat:'back',sets:4,reps:'8'},
+      {exId:'0426',cat:'shoulders',sets:3,reps:'10'},
+      {exId:'2330',cat:'back',sets:3,reps:'10'},
+      {exId:'0313',cat:'arms',sets:3,reps:'12'},
+      {exId:'0241',cat:'arms',sets:3,reps:'12'},
+    ]},
+    {name:'Lower', exercises:[
+      {exId:'0043',cat:'legs',sets:4,reps:'8'},
+      {exId:'0085',cat:'legs',sets:3,reps:'10'},
+      {exId:'0739',cat:'legs',sets:3,reps:'12'},
+      {exId:'0586',cat:'legs',sets:3,reps:'12'},
+      {exId:'1372',cat:'legs',sets:4,reps:'15'},
+    ]},
+  ]},
+  { id:'fullbody', label:'Full Body', routines:[
+    {name:'Full Body', exercises:[
+      {exId:'0043',cat:'legs',sets:3,reps:'8'},
+      {exId:'0025',cat:'chest',sets:3,reps:'8'},
+      {exId:'0027',cat:'back',sets:3,reps:'8'},
+      {exId:'0426',cat:'shoulders',sets:3,reps:'10'},
+      {exId:'0085',cat:'legs',sets:3,reps:'10'},
+      {exId:'0212',cat:'waist',sets:3,reps:'15'},
+    ]},
+  ]},
+];
+function showTemplatePicker(){
+  const body=document.getElementById('template-overlay-body');
+  body.innerHTML=STARTER_TEMPLATES.map(t=>
+    `<div style="padding:12px 14px;cursor:pointer;border-bottom:1px solid #1E2130" onclick="loadTemplate('${t.id}')">
+      <div style="font-weight:700">${t.label}</div>
+      <div style="color:#9195A3;font-size:12px;margin-top:2px">${t.routines.length} rutina${t.routines.length!==1?'s':''}</div>
+    </div>`
+  ).join('');
+  document.getElementById('template-overlay').classList.add('active');
+}
+function closeTemplateOverlay(){ document.getElementById('template-overlay').classList.remove('active'); }
+function loadTemplate(id){
+  const t=STARTER_TEMPLATES.find(x=>x.id===id); if(!t)return;
+  t.routines.forEach(r=>{
+    routines.push({id:uid(), name:r.name, exercises:r.exercises.map(e=>({...e}))});
+  });
+  saveRoutines();
+  closeTemplateOverlay();
+  renderRoutinesList();
+  renderPlanSemanal();
+  toast(`Plantilla "${t.label}" cargada`);
+}
+```
+
+- [ ] **Step 4: Verify in the browser**
+
+Serve and open the app.
+
+1. Go to "+ Nueva rutina" (Log → Plan semanal) → confirm "Rutinas" now shows two buttons in the header: "Plantillas" and "+ Rutina".
+2. Tap "Plantillas" → confirm a full-screen list with 3 options: "Push / Pull / Legs" (3 rutinas), "Upper / Lower" (2 rutinas), "Full Body" (1 rutina).
+3. Tap "Push / Pull / Legs" → confirm the overlay closes, a toast confirms it loaded, and "Rutinas" now lists 3 new routines named Push, Pull, Legs, each with the right exercise count (5 each).
+4. Tap into one (e.g. "Push") via the ✏️ icon → confirm every exercise already has a muscle group, a real exercise picked (thumbnail + Spanish name visible), and sets/reps filled in — fully usable without editing anything.
+5. Tap "Legs" from the list (not the icons) → confirm it starts a session with all 5 leg exercises pre-filled and their rep targets showing as placeholders.
+6. Repeat step 3 with "Full Body" → confirm it ADDS a 4th routine (doesn't replace or ask to replace the PPL ones) — templates are always additive.
+7. Assign one of the loaded routines to a weekday via the week strip (long-press or empty-day-tap flow from Tasks 2-3) → confirm it behaves exactly like any manually-created routine (editable, deletable, exportable via Task 4's flow).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add index.html
+git commit -m "Add starter routine templates (PPL, Upper/Lower, Full Body)"
+```
