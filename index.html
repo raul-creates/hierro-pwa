@@ -363,97 +363,11 @@ const SUBGROUP_DEF = {
   neck:   [{id:'all',label:'Todos'}],
 };
 
-// Spanish name dictionary (common exercises)
-const ES_NAMES = {
-  'barbell bench press':'Press de banca con barra',
-  'dumbbell bench press':'Press de banca con mancuernas',
-  'incline barbell bench press':'Press inclinado con barra',
-  'incline dumbbell bench press':'Press inclinado con mancuernas',
-  'decline barbell bench press':'Press declinado con barra',
-  'cable fly':'Apertura en polea',
-  'dumbbell fly':'Apertura con mancuernas',
-  'push-up':'Flexión de brazos',
-  'pull-up':'Dominada',
-  'chin-up':'Dominada supina',
-  'barbell deadlift':'Peso muerto con barra',
-  'romanian deadlift':'Peso muerto rumano',
-  'sumo deadlift':'Peso muerto sumo',
-  'barbell full squat':'Sentadilla completa',
-  'barbell squat':'Sentadilla con barra',
-  'front squat':'Sentadilla frontal',
-  'leg press':'Prensa de piernas',
-  'leg extension':'Extensión de cuádriceps',
-  'leg curl':'Curl de piernas',
-  'hip thrust':'Empuje de cadera',
-  'glute bridge':'Puente de glúteos',
-  'dumbbell biceps curl':'Curl de bíceps con mancuernas',
-  'barbell curl':'Curl con barra',
-  'hammer curl':'Curl martillo',
-  'concentration curl':'Curl concentrado',
-  'spider curl':'Curl araña',
-  'preacher curl':'Curl en predicador',
-  'incline dumbbell curl':'Curl inclinado con mancuerna',
-  'cable curl':'Curl en polea',
-  'skull crusher':'Rompe cráneos',
-  'triceps dip':'Fondos en paralelas',
-  'triceps pushdown':'Extensión en polea alta',
-  'overhead triceps extension':'Extensión de tríceps sobre la cabeza',
-  'french press':'Press francés',
-  'kickback':'Patada de tríceps',
-  'dumbbell lateral raise':'Elevación lateral con mancuernas',
-  'cable lateral raise':'Elevación lateral en polea',
-  'front raise':'Elevación frontal',
-  'overhead press':'Press militar',
-  'arnold press':'Press Arnold',
-  'face pull':'Jalón a la cara',
-  'reverse fly':'Pájaro / Reverse fly',
-  'upright row':'Remo al cuello',
-  'shrug':'Encogimiento de hombros',
-  'bent over row':'Remo inclinado',
-  'barbell row':'Remo con barra',
-  'dumbbell row':'Remo con mancuerna',
-  'seated cable row':'Remo en polea baja',
-  'lat pulldown':'Jalón al pecho',
-  't-bar row':'Remo en T',
-  'plank':'Plancha',
-  'side plank':'Plancha lateral',
-  'russian twist':'Rotación rusa',
-  'crunch':'Crunch',
-  'sit-up':'Abdominal',
-  'hanging leg raise':'Elevación de piernas colgado',
-  'calf raise':'Elevación de talones',
-  'lunge':'Zancada',
-  'bulgarian split squat':'Sentadilla búlgara',
-  'step-up':'Step up',
-  'hip abduction':'Abducción de cadera',
-  'hip adduction':'Aducción de cadera',
-  'back extension':'Hiperextensión de espalda',
-  'good morning':'Buenos días',
-  'cable crossover':'Cruce de poleas',
-  'chest dip':'Fondos en paralelas (pecho)',
-  'push down':'Extensión en polea',
-  'wrist curl':'Curl de muñeca',
-  'reverse wrist curl':'Curl de muñeca inverso',
-  'dead bug':'Bicho muerto',
-  'pallof press':'Press Pallof',
-  'ab wheel rollout':'Rueda abdominal',
-  'hollow body hold':'Posición hollow',
-  'nordic hamstring curl':'Curl nórdico',
-  'kettlebell swing':'Balanceo con kettlebell',
-  'box jump':'Salto en cajón',
-  'burpee':'Burpee',
-  'mountain climber':'Escalador',
-};
+// Spanish name lookup — full 1,324-exercise translation, keyed by exercise id (es-names.json)
+let ES_NAMES_MAP = {};
 
 function esName(ex) {
-  const key = ex.name.toLowerCase().replace(/\s+/g,' ').trim();
-  if (ES_NAMES[key]) return ES_NAMES[key];
-  // Partial match
-  for (const [k,v] of Object.entries(ES_NAMES)) {
-    if (key.includes(k) || k.includes(key)) return v;
-  }
-  // Fallback: capitalize name
-  return ex.name.charAt(0).toUpperCase() + ex.name.slice(1);
+  return ES_NAMES_MAP[ex.id] || (ex.name.charAt(0).toUpperCase() + ex.name.slice(1));
 }
 
 // ── QUOTES ────────────────────────────────────────────────────────────────────
@@ -519,6 +433,7 @@ let pickerSearch = '';
 async function init() {
   document.getElementById('loader-quote').textContent = randomQuote();
   log = loadLog();
+  try { const r = await fetch('./es-names.json'); ES_NAMES_MAP = await r.json(); } catch(e){}
   try { const c=sessionStorage.getItem(EX_CACHE_KEY); if(c) EXERCISES=JSON.parse(c); } catch(e){}
   if (!EXERCISES.length) {
     try {
