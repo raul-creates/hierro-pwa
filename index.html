@@ -239,6 +239,9 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
   <div class="view active" id="view-log">
     <div class="header">
       <div class="logo-block"><div class="wordmark">HIERRO</div><div class="sub" id="log-quote"></div></div>
+      <div class="header-actions">
+        <button class="btn-ghost" onclick="showSettings()" aria-label="Ajustes">⚙️</button>
+      </div>
     </div>
     <div class="log-content" id="log-content"></div>
     <div class="backup-footer">
@@ -258,6 +261,20 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
     </div>
     <div id="plan-semanal"></div>
     <div class="editor-content" id="routines-list"></div>
+  </div>
+
+  <!-- ── SETTINGS ── -->
+  <div class="view" id="view-settings">
+    <div class="header">
+      <button class="btn-back" onclick="showLog()">←</button>
+      <span class="header-title">Ajustes</span>
+    </div>
+    <div class="editor-content">
+      <div class="field-group">
+        <div class="field-label">Descanso entre series (segundos)</div>
+        <input type="number" id="settings-rest-sec" inputmode="numeric" min="0" step="5" oninput="updateRestSec(this.value)">
+      </div>
+    </div>
   </div>
 
   <!-- ── ROUTINE EDITOR ── -->
@@ -381,6 +398,7 @@ const EX_CACHE_KEY = 'hierro_ex_cache_v1';
 const ROUTINES_KEY = 'hierro_routines';
 const WEEK_KEY = 'hierro_week';
 const DAY_OVERRIDES_KEY = 'hierro_day_overrides';
+const REST_SEC_KEY = 'hierro_rest_sec';
 
 // ── CATEGORY / SUBGROUP CONFIG ─────────────────────────────────────────────
 
@@ -514,6 +532,7 @@ let pickerExBlockId = '';
 let pickerSearch = '';
 let editRoutine = null;
 let editRoutinePreassignDay = null;
+let restSec = 90;
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
@@ -522,6 +541,7 @@ async function init() {
   routines = loadRoutines();
   week = loadWeek();
   dayOverrides = loadDayOverrides();
+  restSec = loadRestSec();
   try { const r = await fetch('./es-names.json'); ES_NAMES_MAP = await r.json(); } catch(e){}
   try { const c=sessionStorage.getItem(EX_CACHE_KEY); if(c) EXERCISES=JSON.parse(c); } catch(e){}
   if (!EXERCISES.length) {
@@ -550,6 +570,10 @@ function loadWeek(){try{return JSON.parse(localStorage.getItem(WEEK_KEY))||{};}c
 function saveWeek(){localStorage.setItem(WEEK_KEY,JSON.stringify(week));}
 function loadDayOverrides(){try{return JSON.parse(localStorage.getItem(DAY_OVERRIDES_KEY))||{};}catch{return{};}}
 function saveDayOverrides(){localStorage.setItem(DAY_OVERRIDES_KEY,JSON.stringify(dayOverrides));}
+function loadRestSec(){const v=parseInt(localStorage.getItem(REST_SEC_KEY),10);return Number.isFinite(v)&&v>=0?v:90;}
+function saveRestSec(){localStorage.setItem(REST_SEC_KEY,String(restSec));}
+function showSettings(){document.getElementById('settings-rest-sec').value=restSec;showView('view-settings');}
+function updateRestSec(val){const n=parseInt(val,10);restSec=Number.isFinite(n)&&n>=0?n:0;saveRestSec();}
 function effectiveRoutineId(iso){
   if(Object.prototype.hasOwnProperty.call(dayOverrides, iso)) return dayOverrides[iso];
   const wd=new Date(iso+'T12:00:00').getDay();
