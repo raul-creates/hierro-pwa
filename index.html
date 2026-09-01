@@ -23,6 +23,10 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;color:#9195A3;font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;transition:color 0.15s}
 .bnav-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .bnav-btn.active{color:#FFD200}
+.bnav-start{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;background:none;border:none;cursor:pointer;color:#9195A3;font-size:10px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;padding-bottom:6px}
+.bnav-start-circle{width:44px;height:44px;border-radius:50%;background:#FFD200;display:flex;align-items:center;justify-content:center;margin-top:-22px;margin-bottom:2px;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
+.bnav-start-circle svg{width:22px;height:22px;stroke:#0F1117;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bnav-start.resume .bnav-start-circle{background:#FF8A00}
 
 /* ── HEADER ── */
 .header{padding:13px 14px 10px;border-bottom:1px solid #1E2130;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#0F1117;z-index:10}
@@ -235,11 +239,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
   <div class="view active" id="view-log">
     <div class="header">
       <div class="logo-block"><div class="wordmark">HIERRO</div><div class="sub" id="log-quote"></div></div>
-      <div class="header-actions">
-        <button class="btn-primary" onclick="newSession()">+ Sesión libre</button>
-      </div>
     </div>
-    <div id="plan-semanal"></div>
     <div class="log-content" id="log-content"></div>
     <div class="backup-footer">
       <button class="btn-ghost" onclick="exportBackup()">Exportar backup</button>
@@ -249,14 +249,14 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 
   <!-- ── ROUTINES ── -->
   <div class="view" id="view-routines">
-    <div class="header">
-      <button class="btn-back" onclick="showLog()">←</button>
-      <span class="header-title">Rutinas</span>
+    <div class="header" style="border-bottom:none">
+      <div class="logo-block"><div class="wordmark" style="font-size:17px">Rutinas</div></div>
       <div class="header-actions">
         <button class="btn-ghost" onclick="showTemplatePicker()">Plantillas</button>
         <button class="btn-primary" onclick="newRoutine(null)">+ Rutina</button>
       </div>
     </div>
+    <div id="plan-semanal"></div>
     <div class="editor-content" id="routines-list"></div>
   </div>
 
@@ -328,13 +328,21 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
       <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
       Log
     </button>
-    <button class="bnav-btn" id="bnav-guide" onclick="showGuide()">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-      Guía
+    <button class="bnav-btn" id="bnav-routines" onclick="showRoutines()">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      Rutinas
+    </button>
+    <button class="bnav-start" id="bnav-start" onclick="newSession()">
+      <span class="bnav-start-circle"><svg viewBox="0 0 24 24"><path d="M6 8v8M4 10v4M20 10v4M18 8v8M8 12h8"/></svg></span>
+      <span>Empezar</span>
     </button>
     <button class="bnav-btn" id="bnav-stats" onclick="showStats()">
       <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
       Stats
+    </button>
+    <button class="bnav-btn" id="bnav-guide" onclick="showGuide()">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      Guía
     </button>
   </nav>
 </div>
@@ -529,7 +537,6 @@ async function init() {
   document.getElementById('loader').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('log-quote').textContent = randomQuote();
-  renderPlanSemanal();
   renderLog();
   buildGuideGroups();
   applyGuideFilter();
@@ -564,7 +571,7 @@ function showView(id){
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
 }
-function showLog(){showView('view-log');setActiveNav('bnav-log');renderPlanSemanal();renderLog();document.getElementById('log-quote').textContent=randomQuote();}
+function showLog(){showView('view-log');setActiveNav('bnav-log');renderLog();document.getElementById('log-quote').textContent=randomQuote();}
 function showGuide(){showView('view-guide');setActiveNav('bnav-guide');}
 function showStats(){showView('view-stats');setActiveNav('bnav-stats');renderStats();}
 function newSession(){
@@ -909,7 +916,7 @@ function onWeekDayTap(iso){
   newRoutine(wd);
 }
 
-function showRoutines(){ routinePickMode=null; renderRoutinesList(); showView('view-routines'); }
+function showRoutines(){ routinePickMode=null; setActiveNav('bnav-routines'); renderPlanSemanal(); renderRoutinesList(); showView('view-routines'); }
 
 let routinePickMode = null;
 function renderRoutinesList(){
