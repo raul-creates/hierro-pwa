@@ -40,7 +40,6 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 /* ── VIEWS ── */
 .view{display:none;padding-bottom:64px}
-#view-edit{padding-bottom:130px}
 .view.active{display:block}
 #view-guide{padding-bottom:0}
 
@@ -318,26 +317,6 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
     </div>
   </div>
 
-  <!-- ── EDITOR ── -->
-  <div class="view" id="view-edit">
-    <div class="header">
-      <button class="btn-back" onclick="showLog()">←</button>
-      <span class="header-title" id="editor-title">Nueva sesión</span>
-    </div>
-    <div class="editor-content">
-      <div class="field-group">
-        <div class="field-label">Fecha</div>
-        <input type="date" id="session-date">
-      </div>
-      <div id="exercises-container"></div>
-      <button class="btn-add-ex" onclick="addExercise()">+ Ejercicio</button>
-    </div>
-    <div class="editor-footer">
-      <button class="btn-cancel" onclick="showLog()">Cancelar</button>
-      <button class="btn-save" id="btn-save" onclick="saveSession()" disabled>Guardar sesión</button>
-    </div>
-  </div>
-
   <!-- ── WORKOUT (GUIDED) ── -->
   <div class="view" id="view-workout">
     <div class="wk-header">
@@ -572,7 +551,6 @@ function randomQuote(){return QUOTES[Math.floor(Math.random()*QUOTES.length)];}
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let EXERCISES = [];
 let log = [];
-let editSession = null;
 let routines = [];
 let week = {};
 let dayOverrides = {};
@@ -639,9 +617,6 @@ function effectiveRoutineId(iso){
 }
 function uid(){return Math.random().toString(36).slice(2,9);}
 function todayISO(){return new Date().toISOString().slice(0,10);}
-function emptySet(){return{id:uid(),weight:'',reps:''};}
-function emptyEx(){return{id:uid(),cat:'',exId:'',sets:[emptySet()]};}
-function emptySession(){return{id:uid(),date:todayISO(),exercises:[emptyEx()]};}
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
 function setActiveNav(id) {
@@ -663,25 +638,12 @@ function updateStartButton(){
 function showLog(){showView('view-log');setActiveNav('bnav-log');renderLog();document.getElementById('log-quote').textContent=randomQuote();}
 function showGuide(){showView('view-guide');setActiveNav('bnav-guide');}
 function showStats(){showView('view-stats');setActiveNav('bnav-stats');renderStats();}
-function newSession(){
-  editSession=emptySession();
-  document.getElementById('editor-title').textContent='Nueva sesión';
-  document.getElementById('session-date').value=editSession.date;
-  renderExercises();
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-edit').classList.add('active');
-  window.scrollTo(0,0);
-}
 function editSessionFn(id){
   const s=log.find(x=>x.id===id);if(!s)return;
-  editSession=JSON.parse(JSON.stringify(s));
-  editSession.exercises.forEach(e=>{if(!e.cat&&e.exId){const ex=EXERCISES.find(x=>x.id===e.exId);if(ex)e.cat=GROUP_MERGE[ex.category]||ex.category;}});
-  document.getElementById('editor-title').textContent='Editar sesión';
-  document.getElementById('session-date').value=editSession.date;
-  renderExercises();
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-edit').classList.add('active');
-  window.scrollTo(0,0);
+  activeWorkout = buildActiveWorkout(null, s);
+  const firstIncomplete = activeWorkout.entries.findIndex(e=>e.sets.some(st=>!st.done));
+  activeWorkout.cur = firstIncomplete>=0 ? firstIncomplete : 0;
+  enterWorkoutScreen();
 }
 
 // ── LOG ───────────────────────────────────────────────────────────────────────
@@ -749,74 +711,6 @@ function importBackupFile(){
   input.click();
 }
 
-// ── EDITOR ────────────────────────────────────────────────────────────────────
-function renderExercises(){
-  document.getElementById('exercises-container').innerHTML=editSession.exercises.map(ex=>buildExBlock(ex)).join('');
-  validateSave();
-}
-function buildSetRow(exId,s,si,disabled,repsPlaceholder){
-  return `<div class="set-row">
-      <span class="set-dot">●</span>
-      <div class="set-iw"><input type="number" inputmode="decimal" placeholder="0" value="${s.weight}" onchange="updateSet('${exId}',${si},'weight',this.value)"><span class="set-unit">kg</span></div>
-      <div class="set-iw"><input type="number" inputmode="numeric" placeholder="${repsPlaceholder||'0'}" value="${s.reps}" onchange="updateSet('${exId}',${si},'reps',this.value)"><span class="set-unit">reps</span></div>
-      <button class="btn-rm-set" onclick="removeSet('${exId}',${si})" ${disabled?'disabled style="opacity:0.2"':''}>✕</button>
-    </div>`;
-}
-function buildExBlock(ex){
-  const canRm=editSession.exercises.length>1;
-  const exData=EXERCISES.find(e=>e.id===ex.exId);
-  const muscles=[exData?.target,...(exData?.secondary_muscles||[])].filter(Boolean);
-  const muscleTags=muscles.map(m=>`<span class="mtag">${m}</span>`).join('');
-
-  const groupOpts=GROUPS.map(g=>`<option value="${g.id}"${ex.cat===g.id?' selected':''}>${g.label}</option>`).join('');
-
-  const setsHTML=ex.sets.map((s,si)=>buildSetRow(ex.id,s,si,ex.sets.length===1,si===0?ex.targetReps:null)).join('');
-
-  return`<div class="ex-block" id="exblock-${ex.id}">
-    <div class="ex-block-top">
-      <div class="ex-selectors">
-        <select class="step-select${!ex.cat?' ph':''}" onchange="updateExCat('${ex.id}',this.value)">
-          <option value="">— Grupo muscular —</option>${groupOpts}
-        </select>
-        ${ex.cat?`<button type="button" class="step-select picker-trigger${!ex.exId?' ph':''}" onclick="openPicker('${ex.id}')">${exData?`<span class="picker-trigger-thumb"><img src="${RAW+exData.image}" loading="lazy" onerror="this.style.display='none'"></span><span>${esName(exData)}</span>`:'— Ejercicio —'}</button>`:''}
-      </div>
-      <button class="btn-remove-ex" onclick="removeExercise('${ex.id}')" ${!canRm?'disabled style="color:#1E2130"':''}>✕</button>
-    </div>
-    <div class="muscles-row" id="muscles-${ex.id}">${muscleTags}</div>
-    <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>Peso</span><span>Reps</span><span class="col-x"></span></div>
-    <div class="sets-list" id="sets-${ex.id}">${setsHTML}</div>
-    <button class="btn-add-set" onclick="addSet('${ex.id}')">+ Serie</button>
-  </div>`;
-}
-
-function updateExCat(exId,cat){const ex=editSession.exercises.find(e=>e.id===exId);if(!ex)return;ex.cat=cat;ex.exId='';renderExercises();}
-function updateExId(exId,val){
-  const ex=editSession.exercises.find(e=>e.id===exId);if(!ex)return;ex.exId=val;
-  const exData=EXERCISES.find(e=>e.id===val);
-  const el=document.getElementById(`muscles-${exId}`);
-  if(el){const muscles=[exData?.target,...(exData?.secondary_muscles||[])].filter(Boolean);el.innerHTML=muscles.map(m=>`<span class="mtag">${m}</span>`).join('');}
-  validateSave();
-}
-function updateSet(exId,si,field,val){const ex=editSession.exercises.find(e=>e.id===exId);if(ex&&ex.sets[si])ex.sets[si][field]=val;}
-function addSet(exId){
-  const ex=editSession.exercises.find(e=>e.id===exId);if(!ex)return;
-  ex.sets.push(emptySet());
-  const container=document.getElementById(`sets-${exId}`);
-  if(!container){renderExercises();return;}
-  const si=ex.sets.length-1;
-  container.insertAdjacentHTML('beforeend',buildSetRow(exId,ex.sets[si],si,false));
-  container.querySelectorAll('.btn-rm-set').forEach(b=>{b.disabled=false;b.removeAttribute('style');});
-}
-function removeSet(exId,si){const ex=editSession.exercises.find(e=>e.id===exId);if(!ex||ex.sets.length<=1)return;ex.sets.splice(si,1);renderExercises();}
-function addExercise(){editSession.exercises.push(emptyEx());renderExercises();setTimeout(()=>{const b=document.querySelectorAll('.ex-block');if(b.length)b[b.length-1].scrollIntoView({behavior:'smooth'});},50);}
-function removeExercise(exId){if(editSession.exercises.length<=1)return;editSession.exercises=editSession.exercises.filter(e=>e.id!==exId);renderExercises();}
-function validateSave(){document.getElementById('btn-save').disabled=!(editSession&&editSession.exercises.every(e=>e.exId));}
-function saveSession(){
-  editSession.date=document.getElementById('session-date').value||todayISO();
-  const idx=log.findIndex(s=>s.id===editSession.id);
-  if(idx>=0)log[idx]=editSession;else log.unshift(editSession);
-  saveLog();toast('Sesión guardada');showLog();
-}
 
 // ── WORKOUT (GUIDED) ─────────────────────────────────────────────────────────
 function buildActiveWorkout(routine, editingSession){
@@ -1336,14 +1230,8 @@ function importRoutineFile(){
 }
 function newSessionFromRoutine(routine){
   if(!routine)return;
-  editSession={id:uid(), date:todayISO(), routineId:routine.id, routineName:routine.name,
-    exercises:routine.exercises.map(re=>({id:uid(), cat:re.cat, exId:re.exId, targetReps:re.reps||'', sets:Array.from({length:re.sets||1},()=>emptySet())}))};
-  document.getElementById('editor-title').textContent='Nueva sesión';
-  document.getElementById('session-date').value=editSession.date;
-  renderExercises();
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-edit').classList.add('active');
-  window.scrollTo(0,0);
+  activeWorkout = buildActiveWorkout(routine, null);
+  enterWorkoutScreen();
 }
 
 // ── EXERCISE PICKER ──────────────────────────────────────────────────────────
@@ -1367,9 +1255,9 @@ function recentExercisesForCat(cat, limit){
   }
   return out;
 }
-let pickerMode = 'session';
+let pickerMode = 'workout';
 function openPicker(exBlockId, mode){
-  pickerMode = mode || 'session';
+  pickerMode = mode || 'workout';
   pickerExBlockId=exBlockId;
   pickerSearch='';
   document.getElementById('picker-search-input').value='';
@@ -1385,8 +1273,7 @@ function filterPicker(){
 }
 function renderPickerBody(){
   const block = pickerMode==='routine' ? editRoutine.exercises.find(e=>e.id===pickerExBlockId)
-    : pickerMode==='workout' ? activeWorkout.entries.find(e=>e.id===pickerExBlockId)
-    : editSession.exercises.find(e=>e.id===pickerExBlockId);
+    : activeWorkout.entries.find(e=>e.id===pickerExBlockId);
   if(!block)return;
   const cat=block.cat;
   const body=document.getElementById('picker-body');
@@ -1420,12 +1307,11 @@ function renderPickerBody(){
 }
 function selectPickerExercise(exId){
   if(pickerMode==='routine'){ updateRoutineExId(pickerExBlockId, exId); renderRoutineExercises(); }
-  else if(pickerMode==='workout'){
+  else {
     const entry=activeWorkout.entries.find(e=>e.id===pickerExBlockId);
     if(entry) entry.exId=exId;
     renderWorkoutScreen();
   }
-  else { updateExId(pickerExBlockId, exId); renderExercises(); }
   closePicker();
 }
 function addExerciseToWorkout(){
@@ -1540,23 +1426,16 @@ function addToToday(){
   const cat=GROUP_MERGE[ex.category];
   const today=todayISO();
   const existing=log.find(s=>s.date===today);
-  if(existing){
-    editSession=JSON.parse(JSON.stringify(existing));
-  } else {
-    editSession={id:uid(), date:today, exercises:[]};
+  activeWorkout = existing ? buildActiveWorkout(null, existing)
+    : {id:uid(), date:today, routineId:null, routineName:null, start:Date.now(), editingSessionId:null, cur:0, entries:[]};
+  if(existing) activeWorkout.start = Date.now();
+  let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
+  if(idx<0){
+    activeWorkout.entries.push({id:uid(), cat, exId:ex.id, targetReps:'', sets:[{weight:'',reps:'',done:false}]});
+    idx = activeWorkout.entries.length-1;
   }
-  let block=editSession.exercises.find(e=>e.exId===ex.id);
-  if(!block){
-    block={id:uid(), cat, exId:ex.id, sets:[emptySet()]};
-    editSession.exercises.push(block);
-  }
-  document.getElementById('editor-title').textContent=existing?'Editar sesión':'Nueva sesión';
-  document.getElementById('session-date').value=editSession.date;
-  renderExercises();
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-edit').classList.add('active');
-  window.scrollTo(0,0);
-  setTimeout(()=>{const el=document.getElementById(`exblock-${block.id}`);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},50);
+  activeWorkout.cur = idx;
+  enterWorkoutScreen();
 }
 function renderGuideDetail(){
   const el=document.getElementById('guide-detail');
