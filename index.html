@@ -230,6 +230,10 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .wk-nav-row{display:flex;gap:9px;padding:12px 14px 0}
 .wk-nav-row button:disabled{opacity:0.3;cursor:default}
 .set-done{width:24px;height:24px;flex-shrink:0;accent-color:#FFD200}
+.rest-timer{display:none;align-items:center;justify-content:space-between;gap:10px;background:#1A1D2E;padding:8px 14px;font-size:13px;font-weight:700;color:#FFD200}
+.rest-timer.active{display:flex}
+.rest-timer .rt-time{font-variant-numeric:tabular-nums;font-size:16px}
+.rest-timer button{background:none;border:1px solid #FFD200;border-radius:6px;color:#FFD200;padding:3px 9px;font-size:12px;cursor:pointer;font-weight:700}
 
 /* ── PICKER ── */
 .picker-overlay{position:fixed;inset:0;background:#0F1117;z-index:400;display:none;flex-direction:column;max-width:480px;margin:0 auto}
@@ -345,13 +349,18 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
       <button class="wk-icon-btn wk-finish" onclick="finishWorkout()" aria-label="Terminar">✓</button>
     </div>
     <div class="wk-progress"><i id="wk-progress-fill"></i></div>
+    <div class="rest-timer" id="rest-timer">
+      <span>Descanso</span><span class="rt-time" id="rt-time">0:00</span>
+      <button onclick="skipRestTimer()">Saltar</button>
+    </div>
     <div class="wk-body" id="wk-body"></div>
     <div class="wk-nav-row">
       <button class="btn-cancel" id="wk-prev" onclick="workoutPrev()">← Anterior</button>
       <button class="btn-cancel" id="wk-next" onclick="workoutNext()">Siguiente →</button>
     </div>
     <div class="editor-content" id="wk-actions-container">
-      <button class="btn-save" id="wk-finish-btn" onclick="finishWorkout()" style="width:100%;margin:12px 0 20px"></button>
+      <button class="btn-add-ex" onclick="addExerciseToWorkout()">+ Agregar ejercicio</button>
+      <button class="btn-save" id="wk-finish-btn" onclick="finishWorkout()" style="width:100%;margin:0 0 20px"></button>
     </div>
   </div>
 
@@ -928,6 +937,9 @@ function updateWorkoutSet(si,field,val){ activeWorkout.entries[activeWorkout.cur
 function toggleWorkoutSet(si){
   const A=activeWorkout, entry=A.entries[A.cur];
   entry.sets[si].done=!entry.sets[si].done;
+  if(A.start && entry.sets[si].done && entry.sets.every(s=>s.done) && A.cur<A.entries.length-1){
+    startRestTimer();
+  }
   renderWorkoutScreen();
 }
 function addWorkoutSet(){
@@ -941,6 +953,35 @@ function removeWorkoutSet(si){
   if(entry.sets.length<=1)return;
   entry.sets.splice(si,1);
   renderWorkoutScreen();
+}
+let restTimerInterval=null, restTimerEnd=0;
+function startRestTimer(){
+  restTimerEnd = Date.now() + restSec*1000;
+  document.getElementById('rest-timer').classList.add('active');
+  tickRestTimer();
+  clearInterval(restTimerInterval);
+  restTimerInterval=setInterval(tickRestTimer,250);
+}
+function tickRestTimer(){
+  const remain=Math.max(0, Math.ceil((restTimerEnd-Date.now())/1000));
+  document.getElementById('rt-time').textContent = Math.floor(remain/60)+':'+String(remain%60).padStart(2,'0');
+  if(remain<=0){
+    clearInterval(restTimerInterval); restTimerInterval=null;
+    try{ navigator.vibrate?.(400); }catch(e){}
+    beepSound();
+    hideRestTimer();
+  }
+}
+function hideRestTimer(){ document.getElementById('rest-timer').classList.remove('active'); }
+function skipRestTimer(){ clearInterval(restTimerInterval); restTimerInterval=null; hideRestTimer(); }
+function beepSound(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.frequency.value=880; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    o.start(); o.stop(ctx.currentTime+0.15);
+  }catch(e){}
 }
 function workoutPrev(){ if(activeWorkout.cur>0){activeWorkout.cur--;renderWorkoutScreen();} }
 function workoutNext(){ if(activeWorkout.cur<activeWorkout.entries.length-1){activeWorkout.cur++;renderWorkoutScreen();} }
@@ -1343,7 +1384,9 @@ function filterPicker(){
   renderPickerBody();
 }
 function renderPickerBody(){
-  const block=(pickerMode==='routine'?editRoutine:editSession).exercises.find(e=>e.id===pickerExBlockId);
+  const block = pickerMode==='routine' ? editRoutine.exercises.find(e=>e.id===pickerExBlockId)
+    : pickerMode==='workout' ? activeWorkout.entries.find(e=>e.id===pickerExBlockId)
+    : editSession.exercises.find(e=>e.id===pickerExBlockId);
   if(!block)return;
   const cat=block.cat;
   const body=document.getElementById('picker-body');
@@ -1377,8 +1420,24 @@ function renderPickerBody(){
 }
 function selectPickerExercise(exId){
   if(pickerMode==='routine'){ updateRoutineExId(pickerExBlockId, exId); renderRoutineExercises(); }
+  else if(pickerMode==='workout'){
+    const entry=activeWorkout.entries.find(e=>e.id===pickerExBlockId);
+    if(entry) entry.exId=exId;
+    renderWorkoutScreen();
+  }
   else { updateExId(pickerExBlockId, exId); renderExercises(); }
   closePicker();
+}
+function addExerciseToWorkout(){
+  const items = GROUPS.map(g=>({label:g.label, onclick:`pickWorkoutGroup('${g.id}')`}));
+  openListOverlay('Elegir grupo muscular', items);
+}
+function pickWorkoutGroup(cat){
+  closeListOverlay();
+  const entry={id:uid(), cat, exId:'', targetReps:'', sets:[{weight:'',reps:'',done:false}]};
+  activeWorkout.entries.push(entry);
+  activeWorkout.cur = activeWorkout.entries.length-1;
+  openPicker(entry.id, 'workout');
 }
 
 // ── GUIDE ─────────────────────────────────────────────────────────────────────
