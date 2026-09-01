@@ -79,7 +79,6 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .step-select.ph{color:#9195A3}
 .step-select option,.step-select optgroup{background:#1A1D2E;color:#fff}
 .btn-remove-ex{background:none;border:none;color:#6B6E7A;font-size:18px;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1;margin-top:5px}
-.muscles-row{margin-bottom:7px;min-height:2px}
 .sets-hdr{display:flex;gap:5px;padding-left:16px;margin-bottom:4px}
 .sets-hdr span{flex:1;color:#6B6E7A;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase}
 .sets-hdr .col-x{width:24px;flex-shrink:0}
@@ -229,6 +228,9 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .wk-nav-row{display:flex;gap:9px;padding:12px 14px 0}
 .wk-nav-row button:disabled{opacity:0.3;cursor:default}
 .set-done{width:24px;height:24px;flex-shrink:0;accent-color:#FFD200}
+.stp-wrap{display:flex;align-items:center;gap:3px;flex:1}
+.stp-wrap input{flex:1;min-width:0;text-align:center;padding:6px 2px}
+.stp-btn{background:#1A1D2E;border:1px solid #252840;border-radius:6px;color:#9195A3;width:26px;height:26px;flex-shrink:0;font-size:16px;cursor:pointer;line-height:1;font-family:inherit}
 .rest-timer{display:none;align-items:center;justify-content:space-between;gap:10px;background:#1A1D2E;padding:8px 14px;font-size:13px;font-weight:700;color:#FFD200}
 .rest-timer.active{display:flex}
 .rest-timer .rt-time{font-variant-numeric:tabular-nums;font-size:16px}
@@ -624,6 +626,7 @@ function setActiveNav(id) {
   document.getElementById(id).classList.add('active');
 }
 function showView(id){
+  if(id!=='view-workout') stopWorkoutClock();
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
@@ -639,6 +642,8 @@ function showLog(){showView('view-log');setActiveNav('bnav-log');renderLog();doc
 function showGuide(){showView('view-guide');setActiveNav('bnav-guide');}
 function showStats(){showView('view-stats');setActiveNav('bnav-stats');renderStats();}
 function editSessionFn(id){
+  if(activeWorkout && !confirm('Tenés un entrenamiento en curso. ¿Descartarlo y arrancar otro?')) return;
+  if(activeWorkout){ stopWorkoutClock(); skipRestTimer(); }
   const s=log.find(x=>x.id===id);if(!s)return;
   activeWorkout = buildActiveWorkout(null, s);
   const firstIncomplete = activeWorkout.entries.findIndex(e=>e.sets.some(st=>!st.done));
@@ -764,6 +769,7 @@ function pickStart(routineId){
 }
 function enterWorkoutScreen(){
   showView('view-workout');
+  if(!activeWorkout.start) skipRestTimer();
   renderWorkoutScreen();
   startWorkoutClock();
 }
@@ -789,11 +795,25 @@ function buildWorkoutSetRow(entry, si){
   const disabled = entry.sets.length<=1;
   return `<div class="set-row">
       <span class="set-dot">●</span>
-      <div class="set-iw"><input type="number" inputmode="decimal" placeholder="0" value="${s.weight}" onchange="updateWorkoutSet(${si},'weight',this.value)"><span class="set-unit">kg</span></div>
-      <div class="set-iw"><input type="number" inputmode="numeric" placeholder="${entry.targetReps||'0'}" value="${s.reps}" onchange="updateWorkoutSet(${si},'reps',this.value)"><span class="set-unit">reps</span></div>
+      <div class="set-iw stp-wrap">
+        <button type="button" class="stp-btn" onclick="bumpWorkoutSet(${si},'weight',-2.5)">−</button>
+        <input type="number" inputmode="decimal" placeholder="0" value="${s.weight}" onchange="updateWorkoutSet(${si},'weight',this.value)">
+        <button type="button" class="stp-btn" onclick="bumpWorkoutSet(${si},'weight',2.5)">+</button>
+      </div>
+      <div class="set-iw stp-wrap">
+        <button type="button" class="stp-btn" onclick="bumpWorkoutSet(${si},'reps',-1)">−</button>
+        <input type="number" inputmode="numeric" placeholder="${entry.targetReps||'0'}" value="${s.reps}" onchange="updateWorkoutSet(${si},'reps',this.value)">
+        <button type="button" class="stp-btn" onclick="bumpWorkoutSet(${si},'reps',1)">+</button>
+      </div>
       <button class="btn-rm-set" onclick="removeWorkoutSet(${si})" ${disabled?'disabled style="opacity:0.2"':''}>✕</button>
       <input type="checkbox" class="set-done" ${s.done?'checked':''} onchange="toggleWorkoutSet(${si})">
     </div>`;
+}
+function bumpWorkoutSet(si, field, delta){
+  const entry=activeWorkout.entries[activeWorkout.cur];
+  const cur=parseFloat(entry.sets[si][field])||0;
+  entry.sets[si][field]=Math.max(0, Math.round((cur+delta)*100)/100);
+  renderWorkoutScreen();
 }
 function renderWorkoutScreen(){
   const A=activeWorkout; if(!A)return;
@@ -816,7 +836,8 @@ function renderWorkoutScreen(){
       <div class="wk-ex-last">${lastTimeSummary(entry.exId)}</div>
       <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>Peso</span><span>Reps</span><span class="col-x"></span><span style="width:24px;flex-shrink:0"></span></div>
       <div id="wk-sets">${entry.sets.map((s,si)=>buildWorkoutSetRow(entry,si)).join('')}</div>
-      <button class="btn-add-set" onclick="addWorkoutSet()">+ Serie</button>`;
+      <button class="btn-add-set" onclick="addWorkoutSet()">+ Serie</button>
+      <button class="btn-add-set" onclick="removeCurrentWorkoutExercise()" style="border-style:solid;color:#FF6B6B;margin-top:6px">Quitar este ejercicio</button>`;
   }
   document.getElementById('wk-prev').disabled = A.cur<=0;
   document.getElementById('wk-next').disabled = A.cur>=A.entries.length-1;
@@ -848,13 +869,20 @@ function removeWorkoutSet(si){
   entry.sets.splice(si,1);
   renderWorkoutScreen();
 }
+function removeCurrentWorkoutExercise(){
+  if(!activeWorkout.entries.length)return;
+  if(!confirm('¿Quitar este ejercicio del entrenamiento?'))return;
+  activeWorkout.entries.splice(activeWorkout.cur,1);
+  if(activeWorkout.cur>=activeWorkout.entries.length) activeWorkout.cur=Math.max(0,activeWorkout.entries.length-1);
+  renderWorkoutScreen();
+}
 let restTimerInterval=null, restTimerEnd=0;
 function startRestTimer(){
+  clearInterval(restTimerInterval);
   restTimerEnd = Date.now() + restSec*1000;
   document.getElementById('rest-timer').classList.add('active');
-  tickRestTimer();
-  clearInterval(restTimerInterval);
   restTimerInterval=setInterval(tickRestTimer,250);
+  tickRestTimer();
 }
 function tickRestTimer(){
   const remain=Math.max(0, Math.ceil((restTimerEnd-Date.now())/1000));
@@ -880,20 +908,24 @@ function beepSound(){
 function workoutPrev(){ if(activeWorkout.cur>0){activeWorkout.cur--;renderWorkoutScreen();} }
 function workoutNext(){ if(activeWorkout.cur<activeWorkout.entries.length-1){activeWorkout.cur++;renderWorkoutScreen();} }
 function discardWorkout(){
-  if(!confirm('Se va a perder lo cargado en esta sesión. ¿Descartar?'))return;
-  activeWorkout=null; stopWorkoutClock(); showLog();
+  const msg = activeWorkout.editingSessionId && !activeWorkout.start
+    ? '¿Descartar los cambios sin guardar?'
+    : 'Se va a perder lo cargado en esta sesión. ¿Descartar?';
+  if(!confirm(msg))return;
+  activeWorkout=null; stopWorkoutClock(); skipRestTimer();
+  showLog();
 }
 function finishWorkout(){
   const A=activeWorkout;
   const clean={
     id: A.editingSessionId || A.id, date: A.date, routineId: A.routineId, routineName: A.routineName,
-    exercises: A.entries.map(e=>({ id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps,
+    exercises: A.entries.filter(e=>e.exId).map(e=>({ id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps,
       sets: e.sets.map(({weight,reps})=>({weight,reps})) }))
   };
   const idx=log.findIndex(s=>s.id===clean.id);
   if(idx>=0) log[idx]=clean; else log.unshift(clean);
   saveLog();
-  activeWorkout=null; stopWorkoutClock();
+  activeWorkout=null; stopWorkoutClock(); skipRestTimer();
   toast('Sesión guardada');
   showLog();
 }
@@ -1229,6 +1261,8 @@ function importRoutineFile(){
   input.click();
 }
 function newSessionFromRoutine(routine){
+  if(activeWorkout && !confirm('Tenés un entrenamiento en curso. ¿Descartarlo y arrancar otro?')) return;
+  if(activeWorkout){ stopWorkoutClock(); skipRestTimer(); }
   if(!routine)return;
   activeWorkout = buildActiveWorkout(routine, null);
   enterWorkoutScreen();
@@ -1266,6 +1300,14 @@ function openPicker(exBlockId, mode){
 }
 function closePicker(){
   document.getElementById('picker-overlay').classList.remove('active');
+  if(pickerMode==='workout' && activeWorkout){
+    const idx=activeWorkout.entries.findIndex(e=>e.id===pickerExBlockId);
+    if(idx>=0 && !activeWorkout.entries[idx].exId){
+      activeWorkout.entries.splice(idx,1);
+      if(activeWorkout.cur>=activeWorkout.entries.length) activeWorkout.cur=Math.max(0,activeWorkout.entries.length-1);
+      renderWorkoutScreen();
+    }
+  }
 }
 function filterPicker(){
   pickerSearch=document.getElementById('picker-search-input').value.trim().toLowerCase();
@@ -1425,6 +1467,19 @@ function addToToday(){
   const ex=EXERCISES.find(e=>e.id===gSelectedId);if(!ex)return;
   const cat=GROUP_MERGE[ex.category];
   const today=todayISO();
+  if(activeWorkout && activeWorkout.start && activeWorkout.date===today){
+    // Already mid-workout today — add to the CURRENT session, don't touch log or rebuild.
+    let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
+    if(idx<0){
+      activeWorkout.entries.push({id:uid(), cat, exId:ex.id, targetReps:'', sets:[{weight:'',reps:'',done:false}]});
+      idx = activeWorkout.entries.length-1;
+    }
+    activeWorkout.cur = idx;
+    enterWorkoutScreen();
+    return;
+  }
+  if(activeWorkout && !confirm('Tenés un entrenamiento en curso. ¿Descartarlo y arrancar otro?')) return;
+  if(activeWorkout){ stopWorkoutClock(); skipRestTimer(); }
   const existing=log.find(s=>s.date===today);
   activeWorkout = existing ? buildActiveWorkout(null, existing)
     : {id:uid(), date:today, routineId:null, routineName:null, start:Date.now(), editingSessionId:null, cur:0, entries:[]};
