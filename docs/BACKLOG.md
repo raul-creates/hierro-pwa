@@ -6,7 +6,7 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 
 - [x] **A. Modo de entrenamiento guiado** — hecho, ver `docs/superpowers/plans/2026-09-01-guided-workout-mode.md`
 - [x] **B. Progresión automática de peso/reps** — hecho (2026-09-02, doble progresión sobre rango implícito targetReps..+4)
-- [ ] **C. Estimación de 1RM**
+- [x] **C. Estimación de 1RM** — hecho (2026-09-02, fórmula de Epley, tercer toggle en el gráfico de progresión de la Guía)
 - [ ] **D. Supersets, peso corporal, reps por lado, cardio**
 - [ ] **E. Compartir rutina por link/QR**
 - [ ] **F. Backup/restore amigable**
@@ -18,4 +18,4 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 
 - **Avisos del admin del gym**: que el admin pueda mandar mensajes desde adentro de la app ("lunes cerrado por feriado nacional", "aumento de cuota en noviembre", etc). Encaja con el modelo white-label (cada gym comunicándose con sus alumnos desde su propia instancia de la app).
 
-_Última actualización: 2026-09-02 (B)._
+_Última actualización: 2026-09-02 (C)._
