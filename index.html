@@ -82,6 +82,10 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .sets-hdr{display:flex;gap:5px;padding-left:16px;margin-bottom:4px}
 .sets-hdr span{flex:1;color:#6B6E7A;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase}
 .sets-hdr .col-x{width:24px;flex-shrink:0}
+.effort-row{display:flex;align-items:center;justify-content:space-between;margin:10px 0;padding:0 2px}
+.effort-row .field-label{margin-bottom:0}
+.effort-row .stp-wrap{flex:none;width:110px}
+.effort-val{flex:1;text-align:center;font-weight:700;color:#fff}
 .set-row{display:flex;gap:5px;align-items:center;margin-bottom:5px}
 .set-dot{color:#6B6E7A;font-size:11px;width:14px;text-align:center;flex-shrink:0}
 .set-iw{flex:1;position:relative}
@@ -296,6 +300,13 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
         <div class="field-label">Descanso entre series (segundos)</div>
         <input type="number" id="settings-rest-sec" inputmode="numeric" min="0" step="5" oninput="updateRestSec(this.value)">
       </div>
+      <div class="field-group">
+        <div class="field-label">Escala de esfuerzo</div>
+        <div class="gd-prog-toggle">
+          <button type="button" class="gsg-btn" id="settings-effort-rpe" onclick="setEffortScale('rpe')">RPE (1-10)</button>
+          <button type="button" class="gsg-btn" id="settings-effort-rir" onclick="setEffortScale('rir')">RIR (0-5)</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -435,6 +446,7 @@ const ROUTINES_KEY = 'hierro_routines';
 const WEEK_KEY = 'hierro_week';
 const DAY_OVERRIDES_KEY = 'hierro_day_overrides';
 const REST_SEC_KEY = 'hierro_rest_sec';
+const EFFORT_SCALE_KEY = 'hierro_effort_scale';
 
 // ── CATEGORY / SUBGROUP CONFIG ─────────────────────────────────────────────
 
@@ -568,6 +580,7 @@ let pickerSearch = '';
 let editRoutine = null;
 let editRoutinePreassignDay = null;
 let restSec = 90;
+let effortScale = 'rpe';
 let activeWorkout = null;
 let workoutTimerInterval = null;
 
@@ -579,6 +592,7 @@ async function init() {
   week = loadWeek();
   dayOverrides = loadDayOverrides();
   restSec = loadRestSec();
+  effortScale = loadEffortScale();
   try { const r = await fetch('./es-names.json'); ES_NAMES_MAP = await r.json(); } catch(e){}
   try { const c=sessionStorage.getItem(EX_CACHE_KEY); if(c) EXERCISES=JSON.parse(c); } catch(e){}
   if (!EXERCISES.length) {
@@ -610,8 +624,21 @@ function loadDayOverrides(){try{return JSON.parse(localStorage.getItem(DAY_OVERR
 function saveDayOverrides(){localStorage.setItem(DAY_OVERRIDES_KEY,JSON.stringify(dayOverrides));}
 function loadRestSec(){const v=parseInt(localStorage.getItem(REST_SEC_KEY),10);return Number.isFinite(v)&&v>=0?v:90;}
 function saveRestSec(){localStorage.setItem(REST_SEC_KEY,String(restSec));}
-function showSettings(){document.getElementById('settings-rest-sec').value=restSec;showView('view-settings');}
+function showSettings(){
+  document.getElementById('settings-rest-sec').value=restSec;
+  document.getElementById('settings-effort-rpe').classList.toggle('active', effortScale==='rpe');
+  document.getElementById('settings-effort-rir').classList.toggle('active', effortScale==='rir');
+  showView('view-settings');
+}
 function updateRestSec(val){const n=parseInt(val,10);restSec=Number.isFinite(n)&&n>=0?n:0;saveRestSec();}
+function loadEffortScale(){const v=localStorage.getItem(EFFORT_SCALE_KEY);return v==='rir'?'rir':'rpe';}
+function saveEffortScale(){localStorage.setItem(EFFORT_SCALE_KEY,effortScale);}
+function setEffortScale(scale){
+  effortScale=scale;
+  saveEffortScale();
+  document.getElementById('settings-effort-rpe').classList.toggle('active', scale==='rpe');
+  document.getElementById('settings-effort-rir').classList.toggle('active', scale==='rir');
+}
 function effectiveRoutineId(iso){
   if(Object.prototype.hasOwnProperty.call(dayOverrides, iso)) return dayOverrides[iso];
   const wd=new Date(iso+'T12:00:00').getDay();
@@ -725,13 +752,13 @@ function buildActiveWorkout(routine, editingSession){
       routineId: editingSession.routineId||null, routineName: editingSession.routineName||null,
       start: null, editingSessionId: editingSession.id, cur: 0,
       entries: editingSession.exercises.map(e=>({
-        id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps||'',
+        id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps||'', effort: e.effort!=null?e.effort:'',
         sets: e.sets.map(s=>({weight: s.weight, reps: s.reps, done: !!(s.weight || s.reps)}))
       }))
     };
   }
   const entries = routine ? routine.exercises.map(re=>({
-    id: uid(), cat: re.cat, exId: re.exId, targetReps: re.reps||'',
+    id: uid(), cat: re.cat, exId: re.exId, targetReps: re.reps||'', effort: '',
     sets: Array.from({length: re.sets||1}, ()=>({weight:'', reps:'', done:false}))
   })) : [];
   entries.forEach(applySuggestedSets);
@@ -833,6 +860,27 @@ function buildWorkoutSetRow(entry, si){
       <input type="checkbox" class="set-done" ${s.done?'checked':''} onchange="toggleWorkoutSet(${si})">
     </div>`;
 }
+function buildEffortRow(entry){
+  const label = effortScale==='rir' ? 'RIR' : 'RPE';
+  return `<div class="effort-row">
+      <span class="field-label">Esfuerzo (${label})</span>
+      <div class="stp-wrap">
+        <button type="button" class="stp-btn" onclick="bumpEffort(-1)">−</button>
+        <span class="effort-val">${entry.effort===''?'—':entry.effort}</span>
+        <button type="button" class="stp-btn" onclick="bumpEffort(1)">+</button>
+      </div>
+    </div>`;
+}
+function bumpEffort(delta){
+  const entry=activeWorkout.entries[activeWorkout.cur];
+  const min = effortScale==='rir'?0:1;
+  const max = effortScale==='rir'?5:10;
+  let cur = entry.effort===''?null:parseFloat(entry.effort);
+  if(cur===null){ if(delta>0) cur=min; else return; }
+  else cur = Math.max(min, Math.min(max, cur+delta));
+  entry.effort = cur;
+  renderWorkoutScreen();
+}
 function bumpWorkoutSet(si, field, delta){
   const entry=activeWorkout.entries[activeWorkout.cur];
   const cur=parseFloat(entry.sets[si][field])||0;
@@ -861,6 +909,7 @@ function renderWorkoutScreen(){
       <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>Peso</span><span>Reps</span><span class="col-x"></span><span style="width:24px;flex-shrink:0"></span></div>
       <div id="wk-sets">${entry.sets.map((s,si)=>buildWorkoutSetRow(entry,si)).join('')}</div>
       <button class="btn-add-set" onclick="addWorkoutSet()">+ Serie</button>
+      ${buildEffortRow(entry)}
       <button class="btn-add-set" onclick="removeCurrentWorkoutExercise()" style="border-style:solid;color:#FF6B6B;margin-top:6px">Quitar este ejercicio</button>`;
   }
   document.getElementById('wk-prev').disabled = A.cur<=0;
@@ -943,7 +992,7 @@ function finishWorkout(){
   const A=activeWorkout;
   const clean={
     id: A.editingSessionId || A.id, date: A.date, routineId: A.routineId, routineName: A.routineName,
-    exercises: A.entries.filter(e=>e.exId).map(e=>({ id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps,
+    exercises: A.entries.filter(e=>e.exId).map(e=>({ id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps, effort: e.effort,
       sets: e.sets.map(({weight,reps})=>({weight,reps})) }))
   };
   const idx=log.findIndex(s=>s.id===clean.id);
@@ -1386,7 +1435,7 @@ function addExerciseToWorkout(){
 }
 function pickWorkoutGroup(cat){
   closeListOverlay();
-  const entry={id:uid(), cat, exId:'', targetReps:'', sets:[{weight:'',reps:'',done:false}]};
+  const entry={id:uid(), cat, exId:'', targetReps:'', effort:'', sets:[{weight:'',reps:'',done:false}]};
   activeWorkout.entries.push(entry);
   activeWorkout.cur = activeWorkout.entries.length-1;
   openPicker(entry.id, 'workout');
@@ -1496,7 +1545,7 @@ function addToToday(){
     // Already mid-workout today — add to the CURRENT session, don't touch log or rebuild.
     let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
     if(idx<0){
-      const entry={id:uid(), cat, exId:ex.id, targetReps:'', sets:[{weight:'',reps:'',done:false}]};
+      const entry={id:uid(), cat, exId:ex.id, targetReps:'', effort:'', sets:[{weight:'',reps:'',done:false}]};
       applySuggestedSets(entry);
       activeWorkout.entries.push(entry);
       idx = activeWorkout.entries.length-1;
