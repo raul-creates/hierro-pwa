@@ -82,10 +82,9 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .sets-hdr{display:flex;gap:5px;padding-left:16px;margin-bottom:4px}
 .sets-hdr span{flex:1;color:#6B6E7A;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase}
 .sets-hdr .col-x{width:24px;flex-shrink:0}
-.effort-row{display:flex;align-items:center;justify-content:space-between;margin:10px 0;padding:0 2px}
-.effort-row .field-label{margin-bottom:0}
-.effort-row .stp-wrap{flex:none;width:110px}
-.effort-val{flex:1;text-align:center;font-weight:700;color:#fff}
+.effort-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0;padding:0 2px}
+.effort-row .field-label{margin-bottom:0;flex-shrink:0}
+.effort-row select{flex:none;width:auto;max-width:190px}
 .set-row{display:flex;gap:5px;align-items:center;margin-bottom:5px}
 .set-dot{color:#6B6E7A;font-size:11px;width:14px;text-align:center;flex-shrink:0}
 .set-iw{flex:1;position:relative}
@@ -870,25 +869,35 @@ function toggleLinkedToNext(){
   entry.linkedToNext=!entry.linkedToNext;
   renderWorkoutScreen();
 }
+function effortOptions(){
+  if(effortScale==='rir'){
+    return Array.from({length:6},(_,i)=>{
+      const v=i; // 0..5, 0 = al fallo (most effort) down to 5 = most reserve
+      const desc = v===0 ? 'Al fallo' : `${v} rep${v>1?'s':''} de reserva`;
+      return {value:v, label:`${v} - ${desc}`};
+    });
+  }
+  return Array.from({length:10},(_,i)=>{
+    const v=10-i; // 10..1
+    const more=10-v;
+    const desc = v===10 ? 'Al fallo' : `Podría haber hecho ${more} rep${more>1?'s':''} más`;
+    return {value:v, label:`${v} - ${desc}`};
+  });
+}
 function buildEffortRow(entry){
   const label = effortScale==='rir' ? 'RIR' : 'RPE';
+  const opts = effortOptions().map(o=>`<option value="${o.value}"${String(entry.effort)===String(o.value)?' selected':''}>${o.label}</option>`).join('');
   return `<div class="effort-row">
       <span class="field-label">Esfuerzo (${label})</span>
-      <div class="stp-wrap">
-        <button type="button" class="stp-btn" onclick="bumpEffort(-1)">−</button>
-        <span class="effort-val">${entry.effort===''?'—':entry.effort}</span>
-        <button type="button" class="stp-btn" onclick="bumpEffort(1)">+</button>
-      </div>
+      <select class="step-select" onchange="setEffort(this.value)">
+        <option value=""${entry.effort===''?' selected':''}>— Sin registrar —</option>
+        ${opts}
+      </select>
     </div>`;
 }
-function bumpEffort(delta){
+function setEffort(val){
   const entry=activeWorkout.entries[activeWorkout.cur];
-  const min = effortScale==='rir'?0:1;
-  const max = effortScale==='rir'?5:10;
-  let cur = entry.effort===''?null:parseFloat(entry.effort);
-  if(cur===null){ if(delta>0) cur=min; else return; }
-  else cur = Math.max(min, Math.min(max, cur+delta));
-  entry.effort = cur;
+  entry.effort = val===''?'':parseInt(val,10);
   renderWorkoutScreen();
 }
 function bumpWorkoutSet(si, field, delta){
