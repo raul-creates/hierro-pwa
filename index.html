@@ -752,13 +752,13 @@ function buildActiveWorkout(routine, editingSession){
       routineId: editingSession.routineId||null, routineName: editingSession.routineName||null,
       start: null, editingSessionId: editingSession.id, cur: 0,
       entries: editingSession.exercises.map(e=>({
-        id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps||'', effort: e.effort!=null?e.effort:'',
+        id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps||'', effort: e.effort!=null?e.effort:'', perSide: !!e.perSide,
         sets: e.sets.map(s=>({weight: s.weight, reps: s.reps, done: !!(s.weight || s.reps)}))
       }))
     };
   }
   const entries = routine ? routine.exercises.map(re=>({
-    id: uid(), cat: re.cat, exId: re.exId, targetReps: re.reps||'', effort: '',
+    id: uid(), cat: re.cat, exId: re.exId, targetReps: re.reps||'', effort: '', perSide: !!re.perSide,
     sets: Array.from({length: re.sets||1}, ()=>({weight:'', reps:'', done:false}))
   })) : [];
   entries.forEach(applySuggestedSets);
@@ -860,6 +860,11 @@ function buildWorkoutSetRow(entry, si, isBodyweight){
       <input type="checkbox" class="set-done" ${s.done?'checked':''} onchange="toggleWorkoutSet(${si})">
     </div>`;
 }
+function togglePerSide(){
+  const entry=activeWorkout.entries[activeWorkout.cur];
+  entry.perSide=!entry.perSide;
+  renderWorkoutScreen();
+}
 function buildEffortRow(entry){
   const label = effortScale==='rir' ? 'RIR' : 'RPE';
   return `<div class="effort-row">
@@ -906,9 +911,12 @@ function renderWorkoutScreen(){
     body.innerHTML=`
       ${ex?`<img class="wk-ex-img" src="${RAW+ex.image}" loading="lazy" onerror="this.style.display='none'">`:''}
       <div class="wk-ex-name">${ex?esName(ex):'—'}</div>
-      ${isBodyweight?'<div style="text-align:center;margin-bottom:4px"><span class="mtag">Peso corporal</span></div>':''}
+      <div style="text-align:center;margin-bottom:4px">
+        ${isBodyweight?'<span class="mtag">Peso corporal</span>':''}
+        <span class="mtag" style="cursor:pointer;${entry.perSide?'':'opacity:0.45'}" onclick="togglePerSide()">Por lado</span>
+      </div>
       <div class="wk-ex-last">${lastTimeSummary(entry.exId)}</div>
-      <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>${isBodyweight?'Peso extra':'Peso'}</span><span>Reps</span><span class="col-x"></span><span style="width:24px;flex-shrink:0"></span></div>
+      <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>${isBodyweight?'Peso extra':'Peso'}</span><span>${entry.perSide?'Reps (c/lado)':'Reps'}</span><span class="col-x"></span><span style="width:24px;flex-shrink:0"></span></div>
       <div id="wk-sets">${entry.sets.map((s,si)=>buildWorkoutSetRow(entry,si,isBodyweight)).join('')}</div>
       <button class="btn-add-set" onclick="addWorkoutSet()">+ Serie</button>
       ${buildEffortRow(entry)}
@@ -994,7 +1002,7 @@ function finishWorkout(){
   const A=activeWorkout;
   const clean={
     id: A.editingSessionId || A.id, date: A.date, routineId: A.routineId, routineName: A.routineName,
-    exercises: A.entries.filter(e=>e.exId).map(e=>({ id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps, effort: e.effort,
+    exercises: A.entries.filter(e=>e.exId).map(e=>({ id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps, effort: e.effort, perSide: !!e.perSide,
       sets: e.sets.map(({weight,reps})=>({weight,reps})) }))
   };
   const idx=log.findIndex(s=>s.id===clean.id);
@@ -1091,7 +1099,7 @@ function isoOffset(daysFromToday){
   d.setDate(d.getDate()+daysFromToday);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function emptyRoutineEx(){return{id:uid(),cat:'',exId:'',sets:3,reps:''};}
+function emptyRoutineEx(){return{id:uid(),cat:'',exId:'',sets:3,reps:'',perSide:false};}
 
 function renderPlanSemanal(){
   const el=document.getElementById('plan-semanal'); if(!el) return;
@@ -1258,11 +1266,16 @@ function buildRoutineExBlock(ex){
       <div class="set-iw"><input type="text" placeholder="ej. 8-10" value="${ex.reps||''}" onchange="updateRoutineField('${ex.id}','reps',this.value)"></div>
       <span class="col-x"></span>
     </div>
+    <label class="effort-row" style="cursor:pointer">
+      <span class="field-label" style="margin:0">Por lado</span>
+      <input type="checkbox" ${ex.perSide?'checked':''} onchange="updateRoutinePerSide('${ex.id}', this.checked)">
+    </label>
   </div>`;
 }
 function updateRoutineExCat(id,cat){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.cat=cat;ex.exId='';renderRoutineExercises();}
 function updateRoutineExId(id,val){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.exId=val;validateRoutineSave();}
 function updateRoutineField(id,field,val){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex[field]=field==='sets'?(parseInt(val,10)||0):val;}
+function updateRoutinePerSide(id,checked){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.perSide=checked;}
 function addRoutineExercise(){editRoutine.exercises.push(emptyRoutineEx());renderRoutineExercises();setTimeout(()=>{const b=document.querySelectorAll('#routine-exercises-container .ex-block');if(b.length)b[b.length-1].scrollIntoView({behavior:'smooth'});},50);}
 function removeRoutineExercise(id){if(editRoutine.exercises.length<=1)return;editRoutine.exercises=editRoutine.exercises.filter(e=>e.id!==id);renderRoutineExercises();}
 function validateRoutineSave(){
@@ -1271,7 +1284,7 @@ function validateRoutineSave(){
 }
 function saveRoutine(){
   const name=document.getElementById('routine-name').value.trim();
-  const clean={id:editRoutine.id, name, exercises:editRoutine.exercises.map(({cat,exId,sets,reps})=>({cat,exId,sets:sets||3,reps:reps||''}))};
+  const clean={id:editRoutine.id, name, exercises:editRoutine.exercises.map(({cat,exId,sets,reps,perSide})=>({cat,exId,sets:sets||3,reps:reps||'',perSide:!!perSide}))};
   const idx=routines.findIndex(r=>r.id===clean.id);
   if(idx>=0) routines[idx]=clean; else routines.push(clean);
   saveRoutines();
@@ -1437,7 +1450,7 @@ function addExerciseToWorkout(){
 }
 function pickWorkoutGroup(cat){
   closeListOverlay();
-  const entry={id:uid(), cat, exId:'', targetReps:'', effort:'', sets:[{weight:'',reps:'',done:false}]};
+  const entry={id:uid(), cat, exId:'', targetReps:'', effort:'', perSide:false, sets:[{weight:'',reps:'',done:false}]};
   activeWorkout.entries.push(entry);
   activeWorkout.cur = activeWorkout.entries.length-1;
   openPicker(entry.id, 'workout');
@@ -1547,7 +1560,7 @@ function addToToday(){
     // Already mid-workout today — add to the CURRENT session, don't touch log or rebuild.
     let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
     if(idx<0){
-      const entry={id:uid(), cat, exId:ex.id, targetReps:'', effort:'', sets:[{weight:'',reps:'',done:false}]};
+      const entry={id:uid(), cat, exId:ex.id, targetReps:'', effort:'', perSide:false, sets:[{weight:'',reps:'',done:false}]};
       applySuggestedSets(entry);
       activeWorkout.entries.push(entry);
       idx = activeWorkout.entries.length-1;
@@ -1564,7 +1577,7 @@ function addToToday(){
   if(existing) activeWorkout.start = Date.now();
   let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
   if(idx<0){
-    const entry={id:uid(), cat, exId:ex.id, targetReps:'', sets:[{weight:'',reps:'',done:false}]};
+    const entry={id:uid(), cat, exId:ex.id, targetReps:'', effort:'', perSide:false, sets:[{weight:'',reps:'',done:false}]};
     applySuggestedSets(entry);
     activeWorkout.entries.push(entry);
     idx = activeWorkout.entries.length-1;
