@@ -7,7 +7,12 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 - [x] **A. Modo de entrenamiento guiado** — hecho, ver `docs/superpowers/plans/2026-09-01-guided-workout-mode.md`
 - [x] **B. Progresión automática de peso/reps** — hecho (2026-09-02, doble progresión sobre rango implícito targetReps..+4)
 - [x] **C. Estimación de 1RM** — hecho (2026-09-02, fórmula de Epley, tercer toggle en el gráfico de progresión de la Guía)
-- [ ] **D. Supersets, peso corporal, reps por lado, cardio**
+- [ ] **D. Supersets, peso corporal, reps por lado, cardio, esfuerzo** — descompuesto en sub-proyectos independientes (orden decidido):
+  - [x] D1. Esfuerzo (RPE/RIR, configurable en Ajustes, un valor por ejercicio) — hecho (2026-09-02)
+  - [ ] D2. Peso corporal
+  - [ ] D3. Reps por lado
+  - [ ] D4. Supersets
+  - [ ] D5. Cardio
 - [ ] **E. Compartir rutina por link/QR**
 - [ ] **F. Backup/restore amigable**
 - [ ] **G. Guía de instalación PWA**
@@ -17,5 +22,6 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 ## Ideas sueltas (aparte del roadmap A–I)
 
 - **Avisos del admin del gym**: que el admin pueda mandar mensajes desde adentro de la app ("lunes cerrado por feriado nacional", "aumento de cuota en noviembre", etc). Encaja con el modelo white-label (cada gym comunicándose con sus alumnos desde su propia instancia de la app).
+- **Swipe para borrar**: reemplazar los botones de borrar explícitos (sets, ejercicios, rutinas, sesiones del Log) por un gesto de swipe, aplicado consistentemente en toda la app. Surgió charlando D1 (RPE), es un cambio de patrón de interacción transversal, no parte de D.
 
-_Última actualización: 2026-09-02 (C)._
+_Última actualización: 2026-09-02 (D1)._
