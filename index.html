@@ -734,6 +734,7 @@ function buildActiveWorkout(routine, editingSession){
     id: uid(), cat: re.cat, exId: re.exId, targetReps: re.reps||'',
     sets: Array.from({length: re.sets||1}, ()=>({weight:'', reps:'', done:false}))
   })) : [];
+  entries.forEach(applySuggestedSets);
   return {
     id: uid(), date: todayISO(), routineId: routine?routine.id:null, routineName: routine?routine.name:null,
     start: Date.now(), editingSessionId: null, cur: 0, entries
@@ -789,6 +790,29 @@ function lastTimeSummary(exId){
   const e=s.exercises.find(x=>x.exId===exId);
   const ss=e.sets.map(st=>`${st.weight||'—'}kg×${st.reps||'—'}`).join(' ');
   return `Última vez (${s.date}): ${ss}`;
+}
+function suggestSets(exId){
+  const sorted=[...log].sort((a,b)=>b.date.localeCompare(a.date));
+  const s=sorted.find(x=>x.exercises.some(e=>e.exId===exId));
+  if(!s) return null;
+  const e=s.exercises.find(x=>x.exId===exId);
+  const base=parseFloat(e.targetReps);
+  if(!base) return null;
+  const validSets=e.sets.filter(st=>st.weight!=='' && st.weight!=null && st.reps!=='' && st.reps!=null);
+  if(!validSets.length) return null;
+  const top=base+4;
+  const weight=parseFloat(validSets[0].weight)||0;
+  const minReps=Math.min(...validSets.map(st=>parseFloat(st.reps)||0));
+  if(minReps<base) return {weight, reps:base};
+  if(minReps>=top) return {weight:Math.round((weight+2.5)*100)/100, reps:base};
+  return {weight, reps:Math.min(minReps+1, top)};
+}
+function applySuggestedSets(entry){
+  if(!entry || !entry.exId) return;
+  if(entry.sets.some(s=>s.weight!=='' || s.reps!=='')) return;
+  const sug=suggestSets(entry.exId);
+  if(!sug) return;
+  entry.sets.forEach(s=>{ s.weight=sug.weight; s.reps=sug.reps; });
 }
 function buildWorkoutSetRow(entry, si){
   const s=entry.sets[si];
@@ -1351,7 +1375,7 @@ function selectPickerExercise(exId){
   if(pickerMode==='routine'){ updateRoutineExId(pickerExBlockId, exId); renderRoutineExercises(); }
   else {
     const entry=activeWorkout.entries.find(e=>e.id===pickerExBlockId);
-    if(entry) entry.exId=exId;
+    if(entry){ entry.exId=exId; applySuggestedSets(entry); }
     renderWorkoutScreen();
   }
   closePicker();
@@ -1471,7 +1495,9 @@ function addToToday(){
     // Already mid-workout today — add to the CURRENT session, don't touch log or rebuild.
     let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
     if(idx<0){
-      activeWorkout.entries.push({id:uid(), cat, exId:ex.id, targetReps:'', sets:[{weight:'',reps:'',done:false}]});
+      const entry={id:uid(), cat, exId:ex.id, targetReps:'', sets:[{weight:'',reps:'',done:false}]};
+      applySuggestedSets(entry);
+      activeWorkout.entries.push(entry);
       idx = activeWorkout.entries.length-1;
     }
     activeWorkout.cur = idx;
@@ -1486,7 +1512,9 @@ function addToToday(){
   if(existing) activeWorkout.start = Date.now();
   let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
   if(idx<0){
-    activeWorkout.entries.push({id:uid(), cat, exId:ex.id, targetReps:'', sets:[{weight:'',reps:'',done:false}]});
+    const entry={id:uid(), cat, exId:ex.id, targetReps:'', sets:[{weight:'',reps:'',done:false}]};
+    applySuggestedSets(entry);
+    activeWorkout.entries.push(entry);
     idx = activeWorkout.entries.length-1;
   }
   activeWorkout.cur = idx;
