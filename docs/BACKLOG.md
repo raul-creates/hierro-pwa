@@ -9,7 +9,7 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 - [x] **C. Estimación de 1RM** — hecho (2026-09-02, fórmula de Epley, tercer toggle en el gráfico de progresión de la Guía)
 - [ ] **D. Supersets, peso corporal, reps por lado, cardio, esfuerzo** — descompuesto en sub-proyectos independientes (orden decidido):
   - [x] D1. Esfuerzo (RPE/RIR, configurable en Ajustes, un valor por ejercicio) — hecho (2026-09-02)
-  - [ ] D2. Peso corporal
+  - [x] D2. Peso corporal — hecho (2026-09-02, auto-detectado por equipment del dataset)
   - [ ] D3. Reps por lado
   - [ ] D4. Supersets
   - [ ] D5. Cardio
@@ -24,4 +24,4 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 - **Avisos del admin del gym**: que el admin pueda mandar mensajes desde adentro de la app ("lunes cerrado por feriado nacional", "aumento de cuota en noviembre", etc). Encaja con el modelo white-label (cada gym comunicándose con sus alumnos desde su propia instancia de la app).
 - **Swipe para borrar**: reemplazar los botones de borrar explícitos (sets, ejercicios, rutinas, sesiones del Log) por un gesto de swipe, aplicado consistentemente en toda la app. Surgió charlando D1 (RPE), es un cambio de patrón de interacción transversal, no parte de D.
 
-_Última actualización: 2026-09-02 (D1)._
+_Última actualización: 2026-09-02 (D2)._
