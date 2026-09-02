@@ -1462,7 +1462,8 @@ function exerciseHistory(exId){
       const sets=s.exercises.filter(e=>e.exId===exId).flatMap(e=>e.sets);
       const weights=sets.map(st=>parseFloat(st.weight)||0);
       const volume=sets.reduce((a,st)=>a+(parseFloat(st.weight)||0)*(parseFloat(st.reps)||0),0);
-      return {date:s.date, max:Math.max(...weights,0), volume};
+      const oneRMs=sets.map(st=>(parseFloat(st.weight)||0)*(1+(parseFloat(st.reps)||0)/30));
+      return {date:s.date, max:Math.max(...weights,0), volume, oneRM:Math.round(Math.max(...oneRMs,0)*10)/10};
     })
     .sort((a,b)=>a.date.localeCompare(b.date))
     .slice(-12);
@@ -1482,7 +1483,7 @@ function buildProgressionSVG(history, metric){
     return {x,y,h};
   });
   const poly=pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const unit=metric==='max'?'kg':'kg·rep';
+  const unit=metric==='volume'?'kg·rep':'kg';
   const circles=pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#FFD200"><title>${p.h.date}: ${p.h[metric]}${unit}</title></circle>`).join('');
   return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><polyline points="${poly}" fill="none" stroke="#FFD200" stroke-width="2"/>${circles}</svg>`;
 }
@@ -1538,6 +1539,7 @@ function renderGuideDetail(){
       <div class="gd-prog-toggle">
         <button class="gsg-btn${gChartMetric==='max'?' active':''}" onclick="setChartMetric('max')">Peso máx</button>
         <button class="gsg-btn${gChartMetric==='volume'?' active':''}" onclick="setChartMetric('volume')">Volumen</button>
+        <button class="gsg-btn${gChartMetric==='oneRM'?' active':''}" onclick="setChartMetric('oneRM')">1RM est.</button>
       </div>
       <div class="gd-prog-chart">${buildProgressionSVG(history,gChartMetric)}</div>`;
   }
