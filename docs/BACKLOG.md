@@ -5,7 +5,7 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 ## Roadmap de paridad con openGym (A–I)
 
 - [x] **A. Modo de entrenamiento guiado** — hecho, ver `docs/superpowers/plans/2026-09-01-guided-workout-mode.md`
-- [ ] **B. Progresión automática de peso/reps**
+- [x] **B. Progresión automática de peso/reps** — hecho (2026-09-02, doble progresión sobre rango implícito targetReps..+4)
 - [ ] **C. Estimación de 1RM**
 - [ ] **D. Supersets, peso corporal, reps por lado, cardio**
 - [ ] **E. Compartir rutina por link/QR**
@@ -18,4 +18,4 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 
 - **Avisos del admin del gym**: que el admin pueda mandar mensajes desde adentro de la app ("lunes cerrado por feriado nacional", "aumento de cuota en noviembre", etc). Encaja con el modelo white-label (cada gym comunicándose con sus alumnos desde su propia instancia de la app).
 
-_Última actualización: 2026-09-02._
+_Última actualización: 2026-09-02 (B)._
