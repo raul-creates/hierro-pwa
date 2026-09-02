@@ -841,14 +841,14 @@ function applySuggestedSets(entry){
   if(!sug) return;
   entry.sets.forEach(s=>{ s.weight=sug.weight; s.reps=sug.reps; });
 }
-function buildWorkoutSetRow(entry, si){
+function buildWorkoutSetRow(entry, si, isBodyweight){
   const s=entry.sets[si];
   const disabled = entry.sets.length<=1;
   return `<div class="set-row">
       <span class="set-dot">●</span>
       <div class="set-iw stp-wrap">
         <button type="button" class="stp-btn" onclick="bumpWorkoutSet(${si},'weight',-2.5)">−</button>
-        <input type="number" inputmode="decimal" placeholder="0" value="${s.weight}" onchange="updateWorkoutSet(${si},'weight',this.value)">
+        <input type="number" inputmode="decimal" placeholder="${isBodyweight?'Corporal':'0'}" value="${s.weight}" onchange="updateWorkoutSet(${si},'weight',this.value)">
         <button type="button" class="stp-btn" onclick="bumpWorkoutSet(${si},'weight',2.5)">+</button>
       </div>
       <div class="set-iw stp-wrap">
@@ -902,12 +902,14 @@ function renderWorkoutScreen(){
   } else {
     const entry=A.entries[A.cur];
     const ex=EXERCISES.find(e=>e.id===entry.exId);
+    const isBodyweight = ex?.equipment==='body weight';
     body.innerHTML=`
       ${ex?`<img class="wk-ex-img" src="${RAW+ex.image}" loading="lazy" onerror="this.style.display='none'">`:''}
       <div class="wk-ex-name">${ex?esName(ex):'—'}</div>
+      ${isBodyweight?'<div style="text-align:center;margin-bottom:4px"><span class="mtag">Peso corporal</span></div>':''}
       <div class="wk-ex-last">${lastTimeSummary(entry.exId)}</div>
-      <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>Peso</span><span>Reps</span><span class="col-x"></span><span style="width:24px;flex-shrink:0"></span></div>
-      <div id="wk-sets">${entry.sets.map((s,si)=>buildWorkoutSetRow(entry,si)).join('')}</div>
+      <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>${isBodyweight?'Peso extra':'Peso'}</span><span>Reps</span><span class="col-x"></span><span style="width:24px;flex-shrink:0"></span></div>
+      <div id="wk-sets">${entry.sets.map((s,si)=>buildWorkoutSetRow(entry,si,isBodyweight)).join('')}</div>
       <button class="btn-add-set" onclick="addWorkoutSet()">+ Serie</button>
       ${buildEffortRow(entry)}
       <button class="btn-add-set" onclick="removeCurrentWorkoutExercise()" style="border-style:solid;color:#FF6B6B;margin-top:6px">Quitar este ejercicio</button>`;
