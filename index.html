@@ -423,7 +423,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 <div class="picker-overlay" id="day-overlay">
   <div class="header" style="border-bottom:none">
     <button class="btn-back" onclick="closeDayOverlay()">←</button>
-    <span class="header-title">Reprogramar día</span>
+    <span class="header-title" id="day-overlay-title">Reprogramar día</span>
   </div>
   <div class="picker-body" id="day-overlay-body"></div>
 </div>
@@ -1197,6 +1197,7 @@ function renderDayOverlay(){
   const body=document.getElementById('day-overlay-body');
   const wd=new Date(dayOverlayIso+'T12:00:00').getDay();
   const dayName=WEEKDAY_NAMES[wd];
+  document.getElementById('day-overlay-title').textContent = dayName.charAt(0).toUpperCase()+dayName.slice(1);
   let html=`<div style="padding:14px 14px 4px;color:#9195A3;font-size:14px;line-height:1.5">¿Enfermo, te salteaste un día o querés algo distinto? Elegí qué entrenar en su lugar.</div>`;
   const items=[{id:'rest',label:'Descanso'},...routines.map(r=>({id:r.id,label:r.name}))];
   html+=`<div style="padding:10px 14px">`+items.map(it=>
@@ -1264,7 +1265,8 @@ function renderRoutinesList(){
 function newRoutine(weekday){
   editRoutine={id:uid(), name:'', exercises:[emptyRoutineEx()]};
   editRoutinePreassignDay=weekday;
-  document.getElementById('routine-editor-title').textContent='Nueva rutina';
+  const dayName = weekday!=null ? WEEKDAY_NAMES[weekday] : null;
+  document.getElementById('routine-editor-title').textContent = dayName ? `Nueva rutina — ${dayName.charAt(0).toUpperCase()+dayName.slice(1)}` : 'Nueva rutina';
   document.getElementById('routine-name').value='';
   renderRoutineExercises();
   showView('view-routine-edit');
