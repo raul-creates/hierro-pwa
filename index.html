@@ -818,6 +818,8 @@ function lastTimeSummary(exId){
   return `Última vez (${s.date}): ${ss}`;
 }
 function suggestSets(exId){
+  const ex=EXERCISES.find(e=>e.id===exId);
+  if(ex && GROUP_MERGE[ex.category]==='cardio') return null;
   const sorted=[...log].sort((a,b)=>b.date.localeCompare(a.date));
   const s=sorted.find(x=>x.exercises.some(e=>e.exId===exId));
   if(!s) return null;
