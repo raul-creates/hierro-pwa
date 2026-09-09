@@ -696,7 +696,7 @@ function renderLog(){
         <div class="card-actions"><button onclick="editSessionFn('${s.id}')">✏️</button><button onclick="deleteSession('${s.id}')">🗑️</button></div>
       </div>
       <div>${grpLabels.map(l=>`<span class="group-tag">${l}</span>`).join('')}</div>
-      <div>${valid.map(e=>{const ex=EXERCISES.find(x=>x.id===e.exId);if(!ex)return'';const ss=e.sets.map(s=>`${s.weight||'—'}kg×${s.reps||'—'}`).join(' ');return`<div class="card-ex-row"><span class="card-ex-name">${esName(ex)}</span><span class="card-ex-sets">${ss}</span></div>`;}).join('')}</div>
+      <div>${valid.map(e=>{const ex=EXERCISES.find(x=>x.id===e.exId);if(!ex)return'';const isCardio=GROUP_MERGE[ex.category]==='cardio';const ss=e.sets.map(st=>isCardio?`${st.reps||'—'} min`:`${st.weight||'—'}kg×${st.reps||'—'}`).join(' ');return`<div class="card-ex-row"><span class="card-ex-name">${esName(ex)}</span><span class="card-ex-sets">${ss}</span></div>`;}).join('')}</div>
     </div>`;
   }).join('');
 }
@@ -814,7 +814,9 @@ function lastTimeSummary(exId){
   const s=sorted.find(x=>x.exercises.some(e=>e.exId===exId));
   if(!s)return'';
   const e=s.exercises.find(x=>x.exId===exId);
-  const ss=e.sets.map(st=>`${st.weight||'—'}kg×${st.reps||'—'}`).join(' ');
+  const ex=EXERCISES.find(x=>x.id===exId);
+  const isCardio=ex && GROUP_MERGE[ex.category]==='cardio';
+  const ss=e.sets.map(st=>isCardio?`${st.reps||'—'} min`:`${st.weight||'—'}kg×${st.reps||'—'}`).join(' ');
   return `Última vez (${s.date}): ${ss}`;
 }
 function suggestSets(exId){
