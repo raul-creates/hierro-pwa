@@ -1618,9 +1618,12 @@ function renderGuideDetail(){
   const instrText=ex.instructions?.es||ex.instructions?.en||'';
   const grpLabel=GROUPS.find(g=>g.id===GROUP_MERGE[ex.category])?.label||ex.category;
 
+  const isCardio = GROUP_MERGE[ex.category]==='cardio';
   const history=exerciseHistory(ex.id);
   let progressionHTML='';
-  if(history.length===1){
+  if(isCardio){
+    progressionHTML=`<div class="gd-section">Progresión</div><div class="gd-prog-empty">Sin datos de progresión para cardio.</div>`;
+  } else if(history.length===1){
     progressionHTML=`<div class="gd-section">Progresión</div><div class="gd-prog-empty">Registrá otra sesión con este ejercicio para ver la progresión.</div>`;
   } else if(history.length>1){
     progressionHTML=`<div class="gd-section">Progresión</div>
