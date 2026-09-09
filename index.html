@@ -428,6 +428,14 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
   <div class="picker-body" id="day-overlay-body"></div>
 </div>
 
+<div class="picker-overlay" id="share-import-overlay">
+  <div class="header" style="border-bottom:none">
+    <button class="btn-back" onclick="dismissSharedRoutine()">←</button>
+    <span class="header-title">Rutina compartida</span>
+  </div>
+  <div class="picker-body" id="share-import-body"></div>
+</div>
+
 <div class="picker-overlay" id="picker-overlay">
   <div class="header" style="border-bottom:none">
     <button class="btn-back" onclick="closePicker()">←</button>
@@ -611,6 +619,7 @@ async function init() {
   buildGuideGroups();
   applyGuideFilter();
   updateStartButton();
+  checkSharedRoutineLink();
 }
 
 function loadLog(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch{return[];}}
@@ -1178,6 +1187,7 @@ function renderPlanSemanal(){
       <button onclick="showRoutines()">+ Nueva rutina</button>
       <button onclick="importRoutineFile()">Importar rutina</button>
       <button onclick="exportRoutinePrompt()">Exportar rutina</button>
+      <button onclick="shareRoutinePrompt()">Compartir rutina</button>
     </div>
   </div>`;
 }
@@ -1255,9 +1265,12 @@ let routinePickMode = null;
 function renderRoutinesList(){
   const el=document.getElementById('routines-list');
   if(!routines.length){ el.innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin rutinas guardadas</h3><p>Creá una con "+ Rutina"</p></div>`; return; }
-  const hint=routinePickMode==='export'?`<div class="field-label" style="margin-bottom:8px">Elegí cuál exportar</div>`:'';
+  const hint=routinePickMode==='export'?`<div class="field-label" style="margin-bottom:8px">Elegí cuál exportar</div>`
+    :routinePickMode==='share'?`<div class="field-label" style="margin-bottom:8px">Elegí cuál compartir</div>`:'';
   el.innerHTML=hint+routines.map(r=>{
-    const tapFn=routinePickMode==='export'?`exportRoutine('${r.id}')`:`newSessionFromRoutine(routines.find(x=>x.id==='${r.id}'))`;
+    const tapFn=routinePickMode==='export'?`exportRoutine('${r.id}')`
+      :routinePickMode==='share'?`shareRoutine('${r.id}')`
+      :`newSessionFromRoutine(routines.find(x=>x.id==='${r.id}'))`;
     const actions=routinePickMode?'':`<div class="card-actions"><button onclick="event.stopPropagation();editRoutineFn('${r.id}')">✏️</button><button onclick="event.stopPropagation();deleteRoutine('${r.id}')">🗑️</button></div>`;
     return `<div class="session-card">
       <div class="card-top">
@@ -1384,6 +1397,74 @@ function exportRoutine(id){
   routinePickMode=null;
   showLog();
 }
+function shareRoutinePrompt(){
+  if(!routines.length){ toast('No hay rutinas guardadas'); return; }
+  if(routines.length===1){ shareRoutine(routines[0].id); return; }
+  routinePickMode='share';
+  renderRoutinesList();
+  showView('view-routines');
+}
+function b64EncodeUnicode(str){
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,(_,p)=>String.fromCharCode(parseInt(p,16))));
+}
+function b64DecodeUnicode(str){
+  return decodeURIComponent(atob(str).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+}
+function shareRoutine(id){
+  const r=routines.find(x=>x.id===id); if(!r)return;
+  const data={hierro_routine:1, name:r.name, exercises:r.exercises};
+  const b64=b64EncodeUnicode(JSON.stringify(data));
+  const url=`${location.origin}${location.pathname}#r=${encodeURIComponent(b64)}`;
+  routinePickMode=null;
+  if(navigator.share){
+    navigator.share({title:'Rutina HIERRO: '+r.name, text:'Te comparto mi rutina "'+r.name+'"', url}).catch(()=>{});
+  } else if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>toast('Link copiado')).catch(()=>toast('No se pudo copiar el link'));
+  } else {
+    toast('No se pudo compartir en este navegador');
+  }
+  showLog();
+}
+let pendingSharedRoutine=null;
+function checkSharedRoutineLink(){
+  const hash=location.hash;
+  if(!hash.startsWith('#r=')) return;
+  const raw=hash.slice(3);
+  history.replaceState(null,'',location.pathname+location.search);
+  let data;
+  try{ data=JSON.parse(b64DecodeUnicode(decodeURIComponent(raw))); }catch(e){ toast('El link de rutina no es válido'); return; }
+  const clean=cleanImportedRoutineData(data);
+  if(clean.error){ toast(clean.error); return; }
+  pendingSharedRoutine=clean;
+  document.getElementById('share-import-body').innerHTML=`
+    <div style="padding:14px;color:#9195A3;font-size:14px;line-height:1.5">Te compartieron la rutina <strong style="color:#fff">"${clean.name}"</strong> con ${clean.exercises.length} ejercicio${clean.exercises.length!==1?'s':''}. ¿La agregás a tus rutinas?</div>
+    <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px">
+      <button class="btn-primary" style="padding:11px 0" onclick="acceptSharedRoutine()">Agregar rutina</button>
+      <button class="btn-ghost" style="padding:9px 0" onclick="dismissSharedRoutine()">Descartar</button>
+    </div>`;
+  document.getElementById('share-import-overlay').classList.add('active');
+}
+function acceptSharedRoutine(){
+  if(!pendingSharedRoutine) return;
+  const imported={id:uid(), name:pendingSharedRoutine.name, exercises:pendingSharedRoutine.exercises};
+  routines.push(imported);
+  saveRoutines();
+  renderPlanSemanal();
+  toast('Rutina agregada: '+imported.name);
+  dismissSharedRoutine();
+}
+function dismissSharedRoutine(){
+  pendingSharedRoutine=null;
+  document.getElementById('share-import-overlay').classList.remove('active');
+}
+function cleanImportedRoutineData(data){
+  if(!data || data.hierro_routine!==1 || !Array.isArray(data.exercises)) return {error:'No es una rutina válida'};
+  const cleanExercises=data.exercises.filter(ex=>EXERCISES.some(x=>x.id===ex.exId)).map(({exId,cat,sets,reps})=>({exId,cat,sets:sets||3,reps:reps||''}));
+  if(!cleanExercises.length) return {error:'Ningún ejercicio de la rutina es válido'};
+  const rawName = typeof data.name==='string' ? data.name.slice(0,60) : '';
+  const cleanName = rawName.replace(/[<>&"]/g,'') || 'Rutina importada';
+  return {name:cleanName, exercises:cleanExercises};
+}
 function importRoutineFile(){
   const input=document.createElement('input');
   input.type='file'; input.accept='application/json,.json';
@@ -1393,12 +1474,9 @@ function importRoutineFile(){
     reader.onload=()=>{
       let data;
       try{ data=JSON.parse(reader.result); }catch{ toast('Archivo inválido'); return; }
-      if(!data || data.hierro_routine!==1 || !Array.isArray(data.exercises)){ toast('No es un archivo de rutina válido'); return; }
-      const cleanExercises=data.exercises.filter(ex=>EXERCISES.some(x=>x.id===ex.exId)).map(({exId,cat,sets,reps})=>({exId,cat,sets:sets||3,reps:reps||''}));
-      if(!cleanExercises.length){ toast('Ningún ejercicio del archivo es válido'); return; }
-      const rawName = typeof data.name==='string' ? data.name.slice(0,60) : '';
-      const cleanName = rawName.replace(/[<>&"]/g,'') || 'Rutina importada';
-      const imported={id:uid(), name:cleanName, exercises:cleanExercises};
+      const clean=cleanImportedRoutineData(data);
+      if(clean.error){ toast(clean.error); return; }
+      const imported={id:uid(), name:clean.name, exercises:clean.exercises};
       routines.push(imported);
       saveRoutines();
       renderPlanSemanal();
