@@ -696,7 +696,7 @@ function renderLog(){
         <div class="card-actions"><button onclick="editSessionFn('${s.id}')">✏️</button><button onclick="deleteSession('${s.id}')">🗑️</button></div>
       </div>
       <div>${grpLabels.map(l=>`<span class="group-tag">${l}</span>`).join('')}</div>
-      <div>${valid.map(e=>{const ex=EXERCISES.find(x=>x.id===e.exId);if(!ex)return'';const isCardio=GROUP_MERGE[ex.category]==='cardio';const ss=e.sets.map(st=>isCardio?`${st.reps||'—'} min`:`${st.weight||'—'}kg×${st.reps||'—'}`).join(' ');return`<div class="card-ex-row"><span class="card-ex-name">${esName(ex)}</span><span class="card-ex-sets">${ss}</span></div>`;}).join('')}</div>
+      <div>${valid.map(e=>{const ex=EXERCISES.find(x=>x.id===e.exId);if(!ex)return'';const isCardio=!!e.cardioDuration;const ss=e.sets.map(st=>isCardio?`${st.reps||'—'} min`:`${st.weight||'—'}kg×${st.reps||'—'}`).join(' ');return`<div class="card-ex-row"><span class="card-ex-name">${esName(ex)}</span><span class="card-ex-sets">${ss}</span></div>`;}).join('')}</div>
     </div>`;
   }).join('');
 }
@@ -744,6 +744,16 @@ function importBackupFile(){
 
 
 // ── WORKOUT (GUIDED) ─────────────────────────────────────────────────────────
+function defaultCardioDuration(ex){
+  return !!(ex && GROUP_MERGE[ex.category]==='cardio' && ex.equipment!=='body weight' && ex.equipment!=='dumbbell');
+}
+function showCardioToggle(ex){
+  return !!(ex && GROUP_MERGE[ex.category]==='cardio');
+}
+function mostRecentSessionWith(exId){
+  const sorted=[...log].sort((a,b)=>b.date.localeCompare(a.date));
+  return sorted.find(x=>x.exercises.some(e=>e.exId===exId)) || null;
+}
 function buildActiveWorkout(routine, editingSession){
   if(editingSession){
     return {
@@ -752,12 +762,14 @@ function buildActiveWorkout(routine, editingSession){
       start: null, editingSessionId: editingSession.id, cur: 0,
       entries: editingSession.exercises.map(e=>({
         id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps||'', effort: e.effort!=null?e.effort:'', perSide: !!e.perSide, linkedToNext: !!e.linkedToNext,
+        cardioDuration: e.cardioDuration!=null ? !!e.cardioDuration : defaultCardioDuration(EXERCISES.find(x=>x.id===e.exId)),
         sets: e.sets.map(s=>({weight: s.weight, reps: s.reps, done: !!(s.weight || s.reps)}))
       }))
     };
   }
   const entries = routine ? routine.exercises.map(re=>({
     id: uid(), cat: re.cat, exId: re.exId, targetReps: re.reps||'', effort: '', perSide: !!re.perSide, linkedToNext: !!re.linkedToNext,
+    cardioDuration: re.cardioDuration!=null ? !!re.cardioDuration : defaultCardioDuration(EXERCISES.find(x=>x.id===re.exId)),
     sets: Array.from({length: re.sets||1}, ()=>({weight:'', reps:'', done:false}))
   })) : [];
   entries.forEach(applySuggestedSets);
@@ -810,22 +822,18 @@ function tickWorkoutClock(){
 function startWorkoutClock(){ stopWorkoutClock(); tickWorkoutClock(); workoutTimerInterval=setInterval(tickWorkoutClock,1000); }
 function stopWorkoutClock(){ if(workoutTimerInterval){clearInterval(workoutTimerInterval);workoutTimerInterval=null;} }
 function lastTimeSummary(exId){
-  const sorted=[...log].sort((a,b)=>b.date.localeCompare(a.date));
-  const s=sorted.find(x=>x.exercises.some(e=>e.exId===exId));
+  const s=mostRecentSessionWith(exId);
   if(!s)return'';
   const e=s.exercises.find(x=>x.exId===exId);
-  const ex=EXERCISES.find(x=>x.id===exId);
-  const isCardio=ex && GROUP_MERGE[ex.category]==='cardio';
+  const isCardio=!!e.cardioDuration;
   const ss=e.sets.map(st=>isCardio?`${st.reps||'—'} min`:`${st.weight||'—'}kg×${st.reps||'—'}`).join(' ');
   return `Última vez (${s.date}): ${ss}`;
 }
 function suggestSets(exId){
-  const ex=EXERCISES.find(e=>e.id===exId);
-  if(ex && GROUP_MERGE[ex.category]==='cardio') return null;
-  const sorted=[...log].sort((a,b)=>b.date.localeCompare(a.date));
-  const s=sorted.find(x=>x.exercises.some(e=>e.exId===exId));
+  const s=mostRecentSessionWith(exId);
   if(!s) return null;
   const e=s.exercises.find(x=>x.exId===exId);
+  if(e.cardioDuration) return null;
   const base=parseFloat(e.targetReps);
   if(!base) return null;
   const validSets=e.sets.filter(st=>st.weight!=='' && st.weight!=null && st.reps!=='' && st.reps!=null);
@@ -872,6 +880,11 @@ function togglePerSide(){
 function toggleLinkedToNext(){
   const entry=activeWorkout.entries[activeWorkout.cur];
   entry.linkedToNext=!entry.linkedToNext;
+  renderWorkoutScreen();
+}
+function toggleCardioDuration(){
+  const entry=activeWorkout.entries[activeWorkout.cur];
+  entry.cardioDuration=!entry.cardioDuration;
   renderWorkoutScreen();
 }
 function effortOptions(){
@@ -927,7 +940,7 @@ function renderWorkoutScreen(){
     const entry=A.entries[A.cur];
     const ex=EXERCISES.find(e=>e.id===entry.exId);
     const isBodyweight = ex?.equipment==='body weight';
-    const isCardio = ex && GROUP_MERGE[ex.category]==='cardio';
+    const isCardio = !!entry.cardioDuration;
     body.innerHTML=`
       ${ex?`<img class="wk-ex-img" src="${RAW+ex.image}" loading="lazy" onerror="this.style.display='none'">`:''}
       <div class="wk-ex-name">${ex?esName(ex):'—'}</div>
@@ -935,6 +948,7 @@ function renderWorkoutScreen(){
         ${isBodyweight?'<span class="mtag">Peso corporal</span>':''}
         <span class="mtag" style="cursor:pointer;${entry.perSide?'':'opacity:0.45'}" onclick="togglePerSide()">Por lado</span>
         ${A.cur<A.entries.length-1?`<span class="mtag" style="cursor:pointer;${entry.linkedToNext?'':'opacity:0.45'}" onclick="toggleLinkedToNext()">Superset con el siguiente</span>`:''}
+        ${showCardioToggle(ex)?`<span class="mtag" style="cursor:pointer;${isCardio?'':'opacity:0.45'}" onclick="toggleCardioDuration()">Duración</span>`:''}
       </div>
       <div class="wk-ex-last">${lastTimeSummary(entry.exId)}</div>
       <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span>${isCardio?'':'<span>'+(isBodyweight?'Peso extra':'Peso')+'</span>'}<span>${isCardio?'Duración (min)':(entry.perSide?'Reps (c/lado)':'Reps')}</span><span class="col-x"></span><span style="width:24px;flex-shrink:0"></span></div>
@@ -1023,7 +1037,7 @@ function finishWorkout(){
   const A=activeWorkout;
   const clean={
     id: A.editingSessionId || A.id, date: A.date, routineId: A.routineId, routineName: A.routineName,
-    exercises: A.entries.filter(e=>e.exId).map(e=>({ id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps, effort: e.effort, perSide: !!e.perSide, linkedToNext: !!e.linkedToNext,
+    exercises: A.entries.filter(e=>e.exId).map(e=>({ id: uid(), cat: e.cat, exId: e.exId, targetReps: e.targetReps, effort: e.effort, perSide: !!e.perSide, linkedToNext: !!e.linkedToNext, cardioDuration: !!e.cardioDuration,
       sets: e.sets.map(({weight,reps})=>({weight,reps})) }))
   };
   const idx=log.findIndex(s=>s.id===clean.id);
@@ -1120,7 +1134,7 @@ function isoOffset(daysFromToday){
   d.setDate(d.getDate()+daysFromToday);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function emptyRoutineEx(){return{id:uid(),cat:'',exId:'',sets:3,reps:'',perSide:false,linkedToNext:false};}
+function emptyRoutineEx(){return{id:uid(),cat:'',exId:'',sets:3,reps:'',perSide:false,linkedToNext:false,cardioDuration:false};}
 
 function renderPlanSemanal(){
   const el=document.getElementById('plan-semanal'); if(!el) return;
@@ -1295,13 +1309,18 @@ function buildRoutineExBlock(ex, hasNext){
       <span class="field-label" style="margin:0">Superset con el siguiente ejercicio</span>
       <input type="checkbox" ${ex.linkedToNext?'checked':''} onchange="updateRoutineLinkedToNext('${ex.id}', this.checked)">
     </label>`:''}
+    ${showCardioToggle(exData)?`<label class="effort-row" style="cursor:pointer">
+      <span class="field-label" style="margin:0">Registrar como duración</span>
+      <input type="checkbox" ${ex.cardioDuration?'checked':''} onchange="updateRoutineCardioDuration('${ex.id}', this.checked)">
+    </label>`:''}
   </div>`;
 }
 function updateRoutineExCat(id,cat){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.cat=cat;ex.exId='';renderRoutineExercises();}
-function updateRoutineExId(id,val){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.exId=val;validateRoutineSave();}
+function updateRoutineExId(id,val){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.exId=val;ex.cardioDuration=defaultCardioDuration(EXERCISES.find(x=>x.id===val));validateRoutineSave();}
 function updateRoutineField(id,field,val){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex[field]=field==='sets'?(parseInt(val,10)||0):val;}
 function updateRoutinePerSide(id,checked){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.perSide=checked;}
 function updateRoutineLinkedToNext(id,checked){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.linkedToNext=checked;}
+function updateRoutineCardioDuration(id,checked){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.cardioDuration=checked;}
 function addRoutineExercise(){editRoutine.exercises.push(emptyRoutineEx());renderRoutineExercises();setTimeout(()=>{const b=document.querySelectorAll('#routine-exercises-container .ex-block');if(b.length)b[b.length-1].scrollIntoView({behavior:'smooth'});},50);}
 function removeRoutineExercise(id){if(editRoutine.exercises.length<=1)return;editRoutine.exercises=editRoutine.exercises.filter(e=>e.id!==id);renderRoutineExercises();}
 function validateRoutineSave(){
@@ -1310,7 +1329,7 @@ function validateRoutineSave(){
 }
 function saveRoutine(){
   const name=document.getElementById('routine-name').value.trim();
-  const clean={id:editRoutine.id, name, exercises:editRoutine.exercises.map(({cat,exId,sets,reps,perSide,linkedToNext})=>({cat,exId,sets:sets||3,reps:reps||'',perSide:!!perSide,linkedToNext:!!linkedToNext}))};
+  const clean={id:editRoutine.id, name, exercises:editRoutine.exercises.map(({cat,exId,sets,reps,perSide,linkedToNext,cardioDuration})=>({cat,exId,sets:sets||3,reps:reps||'',perSide:!!perSide,linkedToNext:!!linkedToNext,cardioDuration:!!cardioDuration}))};
   const idx=routines.findIndex(r=>r.id===clean.id);
   if(idx>=0) routines[idx]=clean; else routines.push(clean);
   saveRoutines();
@@ -1465,7 +1484,7 @@ function selectPickerExercise(exId){
   if(pickerMode==='routine'){ updateRoutineExId(pickerExBlockId, exId); renderRoutineExercises(); }
   else {
     const entry=activeWorkout.entries.find(e=>e.id===pickerExBlockId);
-    if(entry){ entry.exId=exId; applySuggestedSets(entry); }
+    if(entry){ entry.exId=exId; entry.cardioDuration=defaultCardioDuration(EXERCISES.find(x=>x.id===exId)); applySuggestedSets(entry); }
     renderWorkoutScreen();
   }
   closePicker();
@@ -1476,7 +1495,7 @@ function addExerciseToWorkout(){
 }
 function pickWorkoutGroup(cat){
   closeListOverlay();
-  const entry={id:uid(), cat, exId:'', targetReps:'', effort:'', perSide:false, linkedToNext:false, sets:[{weight:'',reps:'',done:false}]};
+  const entry={id:uid(), cat, exId:'', targetReps:'', effort:'', perSide:false, linkedToNext:false, cardioDuration:false, sets:[{weight:'',reps:'',done:false}]};
   activeWorkout.entries.push(entry);
   activeWorkout.cur = activeWorkout.entries.length-1;
   openPicker(entry.id, 'workout');
@@ -1586,7 +1605,7 @@ function addToToday(){
     // Already mid-workout today — add to the CURRENT session, don't touch log or rebuild.
     let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
     if(idx<0){
-      const entry={id:uid(), cat, exId:ex.id, targetReps:'', effort:'', perSide:false, linkedToNext:false, sets:[{weight:'',reps:'',done:false}]};
+      const entry={id:uid(), cat, exId:ex.id, targetReps:'', effort:'', perSide:false, linkedToNext:false, cardioDuration:defaultCardioDuration(ex), sets:[{weight:'',reps:'',done:false}]};
       applySuggestedSets(entry);
       activeWorkout.entries.push(entry);
       idx = activeWorkout.entries.length-1;
@@ -1603,7 +1622,7 @@ function addToToday(){
   if(existing) activeWorkout.start = Date.now();
   let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
   if(idx<0){
-    const entry={id:uid(), cat, exId:ex.id, targetReps:'', effort:'', perSide:false, linkedToNext:false, sets:[{weight:'',reps:'',done:false}]};
+    const entry={id:uid(), cat, exId:ex.id, targetReps:'', effort:'', perSide:false, linkedToNext:false, cardioDuration:defaultCardioDuration(ex), sets:[{weight:'',reps:'',done:false}]};
     applySuggestedSets(entry);
     activeWorkout.entries.push(entry);
     idx = activeWorkout.entries.length-1;
@@ -1620,7 +1639,9 @@ function renderGuideDetail(){
   const instrText=ex.instructions?.es||ex.instructions?.en||'';
   const grpLabel=GROUPS.find(g=>g.id===GROUP_MERGE[ex.category])?.label||ex.category;
 
-  const isCardio = GROUP_MERGE[ex.category]==='cardio';
+  const lastSession = mostRecentSessionWith(ex.id);
+  const lastEntry = lastSession && lastSession.exercises.find(x=>x.exId===ex.id);
+  const isCardio = lastEntry ? !!lastEntry.cardioDuration : defaultCardioDuration(ex);
   const history=exerciseHistory(ex.id);
   let progressionHTML='';
   if(isCardio){
