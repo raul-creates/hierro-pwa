@@ -16,7 +16,7 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 - [x] **E. Compartir rutina por link/QR** — hecho (2026-09-10, solo link — sin QR para no agregar dependencias; ver commit)
 - [ ] **F. Backup/restore amigable**
 - [ ] **G. Guía de instalación PWA**
-- [ ] **H. Pasada de diseño (tamaños, tipografía)**
+- [x] **H. Pasada de diseño (tamaños, tipografía)** — hecho (2026-09-10, botones plan semanal, contraste de tags toggle, nombres truncados en Stats — ver commit)
 - [ ] **I. Glosario de términos**
 
 ## Ideas sueltas (aparte del roadmap A–I)
@@ -24,4 +24,4 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 - **Avisos del admin del gym**: que el admin pueda mandar mensajes desde adentro de la app ("lunes cerrado por feriado nacional", "aumento de cuota en noviembre", etc). Encaja con el modelo white-label (cada gym comunicándose con sus alumnos desde su propia instancia de la app).
 - **Swipe para borrar**: reemplazar los botones de borrar explícitos (sets, ejercicios, rutinas, sesiones del Log) por un gesto de swipe, aplicado consistentemente en toda la app. Surgió charlando D1 (RPE), es un cambio de patrón de interacción transversal, no parte de D.
 
-_Última actualización: 2026-09-10 (E)._
+_Última actualización: 2026-09-10 (H)._
