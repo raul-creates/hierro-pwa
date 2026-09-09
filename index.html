@@ -215,7 +215,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .week-day.today{background:#FFD200}
 .week-day.today .wd-letter,.week-day.today .wd-name{color:#0F1117}
 .wd-ovr{color:#FF8A00}
-.plan-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.plan-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .plan-buttons button{background:#1A1D2E;border:1px solid #252840;border-radius:8px;color:#9195A3;padding:9px 4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ── WORKOUT (GUIDED) ── */
@@ -1187,7 +1187,6 @@ function renderPlanSemanal(){
     <div class="field-label">Plan semanal</div>
     <div class="week-strip">${cellsHtml}</div>
     <div class="plan-buttons" id="plan-buttons">
-      <button onclick="showRoutines()">+ Nueva rutina</button>
       <button onclick="importRoutineFile()">Importar rutina</button>
       <button onclick="exportRoutinePrompt()">Exportar rutina</button>
       <button onclick="shareRoutinePrompt()">Compartir rutina</button>
