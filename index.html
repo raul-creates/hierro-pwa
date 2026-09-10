@@ -45,6 +45,13 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 /* ── LOG ── */
 .log-content{padding:12px 14px 0}
+.notices{padding:4px 14px 20px;display:flex;flex-direction:column;gap:8px}
+.notice-card{background:#13151F;border:1px solid #1E2130;border-radius:10px;padding:11px 12px;display:flex;gap:10px;align-items:flex-start}
+.notice-icon{font-size:18px;flex-shrink:0;line-height:1.3}
+.notice-body{flex:1;min-width:0}
+.notice-title{color:#fff;font-size:13px;font-weight:700;margin-bottom:2px}
+.notice-text{color:#9195A3;font-size:12px;line-height:1.5}
+.notice-close{background:none;border:none;color:#6B6E7A;font-size:16px;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1}
 .empty-state{text-align:center;padding:60px 20px}
 .empty-state .icon{font-size:40px;margin-bottom:14px}
 .empty-state h3{font-size:15px;font-weight:700;color:#9195A3;margin-bottom:5px}
@@ -272,6 +279,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
       </div>
     </div>
     <div class="log-content" id="log-content"></div>
+    <div id="notices"></div>
   </div>
 
   <!-- ── ROUTINES ── -->
@@ -366,6 +374,9 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
   <div class="view" id="view-guide">
     <div class="header" style="border-bottom:none">
       <div class="logo-block"><div class="wordmark" style="font-size:17px">Guía</div></div>
+      <div class="header-actions">
+        <button class="btn-ghost" onclick="openGlossary()" aria-label="Glosario">?</button>
+      </div>
     </div>
     <div class="guide-groups" id="guide-groups"></div>
     <div class="guide-subgroups" id="guide-subgroups"></div>
@@ -456,6 +467,14 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
   <div class="picker-body" id="backup-import-body"></div>
 </div>
 
+<div class="picker-overlay" id="glossary-overlay">
+  <div class="header" style="border-bottom:none">
+    <button class="btn-back" onclick="closeGlossary()">←</button>
+    <span class="header-title">Glosario</span>
+  </div>
+  <div class="picker-body" id="glossary-body"></div>
+</div>
+
 <div class="picker-overlay" id="picker-overlay">
   <div class="header" style="border-bottom:none">
     <button class="btn-back" onclick="closePicker()">←</button>
@@ -475,6 +494,7 @@ const DAY_OVERRIDES_KEY = 'hierro_day_overrides';
 const REST_SEC_KEY = 'hierro_rest_sec';
 const EFFORT_SCALE_KEY = 'hierro_effort_scale';
 const LAST_BACKUP_KEY = 'hierro_last_backup';
+const DISMISSED_NOTICES_KEY = 'hierro_dismissed_notices';
 
 // ── CATEGORY / SUBGROUP CONFIG ─────────────────────────────────────────────
 
@@ -637,6 +657,7 @@ async function init() {
   document.getElementById('app').style.display='block';
   document.getElementById('log-quote').textContent = randomQuote();
   renderLog();
+  renderNotices();
   buildGuideGroups();
   applyGuideFilter();
   updateStartButton();
@@ -695,6 +716,7 @@ function showView(id){
   document.getElementById(id).classList.add('active');
   document.getElementById('guide-detail-overlay').classList.remove('active');
   document.getElementById('backup-import-overlay').classList.remove('active');
+  document.getElementById('glossary-overlay').classList.remove('active');
   window.scrollTo(0,0);
   updateStartButton();
 }
@@ -739,6 +761,29 @@ function renderLog(){
       <div>${valid.map(e=>{const ex=EXERCISES.find(x=>x.id===e.exId);if(!ex)return'';const isCardio=!!e.cardioDuration;const ss=e.sets.map(st=>isCardio?`${st.reps||'—'} min`:`${st.weight||'—'}kg×${st.reps||'—'}`).join(' ');return`<div class="card-ex-row"><span class="card-ex-name">${esName(ex)}</span><span class="card-ex-sets">${ss}</span></div>`;}).join('')}</div>
     </div>`;
   }).join('');
+}
+const NOTICES = [
+  {id:'install-guide', icon:'📲', title:'Instalá HIERRO en tu celular', text:'Android (Chrome): menú ⋮ → "Instalar app". iOS (Safari): botón compartir → "Agregar a inicio". Así abre a pantalla completa y funciona sin conexión.'}
+];
+function loadDismissedNotices(){try{return JSON.parse(localStorage.getItem(DISMISSED_NOTICES_KEY))||[];}catch{return[];}}
+function saveDismissedNotices(ids){localStorage.setItem(DISMISSED_NOTICES_KEY,JSON.stringify(ids));}
+function renderNotices(){
+  const el=document.getElementById('notices'); if(!el)return;
+  const dismissed=loadDismissedNotices();
+  const visible=NOTICES.filter(n=>!dismissed.includes(n.id));
+  el.innerHTML=visible.map(n=>`<div class="notice-card">
+      <span class="notice-icon">${n.icon}</span>
+      <div class="notice-body">
+        <div class="notice-title">${n.title}</div>
+        <div class="notice-text">${n.text}</div>
+      </div>
+      <button class="notice-close" onclick="dismissNotice('${n.id}')" aria-label="Cerrar">✕</button>
+    </div>`).join('');
+}
+function dismissNotice(id){
+  const dismissed=loadDismissedNotices();
+  if(!dismissed.includes(id)){ dismissed.push(id); saveDismissedNotices(dismissed); }
+  renderNotices();
 }
 function deleteSession(id){
   if(!confirm('¿Eliminar esta sesión?'))return;
@@ -806,6 +851,31 @@ function confirmBackupRestore(){
   cancelBackupRestore();
 }
 
+// ── GLOSSARY ──────────────────────────────────────────────────────────────────
+const GLOSSARY = [
+  {term:'RPE (Esfuerzo Percibido)', def:'Escala de 1 a 10 de qué tan difícil sentiste una serie. 10 = al fallo, no podrías haber hecho ni una rep más.'},
+  {term:'RIR (Reps en Reserva)', def:'Cuántas repeticiones más podrías haber hecho después de una serie. 0 = al fallo. Es la otra forma de medir esfuerzo, alternativa a RPE.'},
+  {term:'1RM', def:'El peso máximo que podrías levantar en una sola repetición. HIERRO lo estima a partir de tus series (no hace falta probarlo de verdad).'},
+  {term:'PPL (Push / Pull / Legs)', def:'Rutina dividida en empuje, tracción y piernas, repartida en distintos días de la semana.'},
+  {term:'Superset', def:'Encadenar 2 o más ejercicios seguidos, sin descanso entre ellos.'},
+  {term:'Peso corporal', def:'Ejercicio que no usa peso externo (o le podés agregar peso extra opcional, como dominadas con lastre).'},
+  {term:'Por lado', def:'Ejercicio unilateral: las repeticiones se cuentan para cada lado del cuerpo por separado.'},
+  {term:'Duración', def:'Para ejercicios de cardio, en vez de peso y reps se registra el tiempo (en minutos).'},
+  {term:'Descanso', def:'El temporizador que arranca solo entre series durante un entrenamiento en curso.'},
+  {term:'Plan semanal', def:'Qué rutina (o descanso) te toca entrenar cada día de la semana.'},
+];
+function openGlossary(){
+  document.getElementById('glossary-body').innerHTML = GLOSSARY.map(g=>
+    `<div style="padding:12px 14px;border-bottom:1px solid #1E2130">
+      <div style="color:#FFD200;font-weight:700;font-size:14px;margin-bottom:3px">${g.term}</div>
+      <div style="color:#9195A3;font-size:13px;line-height:1.5">${g.def}</div>
+    </div>`
+  ).join('');
+  document.getElementById('glossary-overlay').classList.add('active');
+}
+function closeGlossary(){
+  document.getElementById('glossary-overlay').classList.remove('active');
+}
 
 // ── WORKOUT (GUIDED) ─────────────────────────────────────────────────────────
 function showCardioToggle(ex){
