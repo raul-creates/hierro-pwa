@@ -23,5 +23,6 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 
 - [x] **Avisos del admin del gym** — hecho (2026-09-10, sin backend propio: Google Form → Sheet publicada → HIERRO la lee como JSON vía el endpoint gviz de Google Sheets, cacheada por sesión, se integra al mismo sistema de NOTICES de G. Configuración: constante `ADMIN_NOTICES_SHEET_ID` en `index.html`, vacía por default).
 - **Swipe para borrar**: reemplazar los botones de borrar explícitos (sets, ejercicios, rutinas, sesiones del Log) por un gesto de swipe, aplicado consistentemente en toda la app. Surgió charlando D1 (RPE), es un cambio de patrón de interacción transversal, no parte de D.
+- **Tarjetas de aviso rotativas**: en vez de apilar todas las tarjetas de `NOTICES` una debajo de la otra en el Log, que vayan rotando (tipo carrusel) — mezclando avisos urgentes del admin, tips de features de la app (ej. "¿Sabías que hay un glosario en la Guía?"), y frases motivacionales cortas. Surgió charlando las tarjetas de G/avisos del admin.
 
 _Última actualización: 2026-09-10 (avisos del admin del gym) — roadmap A–I completo + 1 de 2 ideas sueltas._
