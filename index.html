@@ -486,8 +486,16 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 
 <script>
 const RAW = 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/';
+// Google Form → Sheet con los avisos del gym. Pegá acá el ID de la Sheet
+// (la parte de su URL entre "/d/" y "/edit"), con permiso "Cualquiera con
+// el link puede ver". Columnas esperadas, en este orden: Marca temporal
+// (la agrega Forms solo), Mensaje (respuesta corta, obligatoria),
+// Mostrar hasta (respuesta corta, opcional — fecha AAAA-MM-DD; vacío =
+// permanente). Vacío acá abajo = sin avisos del admin, la app funciona igual.
+const ADMIN_NOTICES_SHEET_ID = '';
 const STORAGE_KEY = 'hierro_log_v3';
 const EX_CACHE_KEY = 'hierro_ex_cache_v1';
+const ADMIN_NOTICES_CACHE_KEY = 'hierro_admin_notices_cache_v1';
 const ROUTINES_KEY = 'hierro_routines';
 const WEEK_KEY = 'hierro_week';
 const DAY_OVERRIDES_KEY = 'hierro_day_overrides';
@@ -658,6 +666,7 @@ async function init() {
   document.getElementById('log-quote').textContent = randomQuote();
   renderLog();
   renderNotices();
+  refreshAdminNotices();
   buildGuideGroups();
   applyGuideFilter();
   updateStartButton();
@@ -765,12 +774,13 @@ function renderLog(){
 const NOTICES = [
   {id:'install-guide', icon:'📲', title:'Instalá HIERRO en tu celular', text:'Android (Chrome): menú ⋮ → "Instalar app". iOS (Safari): botón compartir → "Agregar a inicio". Así abre a pantalla completa y funciona sin conexión.'}
 ];
+let dynamicNotices=[];
 function loadDismissedNotices(){try{return JSON.parse(localStorage.getItem(DISMISSED_NOTICES_KEY))||[];}catch{return[];}}
 function saveDismissedNotices(ids){localStorage.setItem(DISMISSED_NOTICES_KEY,JSON.stringify(ids));}
 function renderNotices(){
   const el=document.getElementById('notices'); if(!el)return;
   const dismissed=loadDismissedNotices();
-  const visible=NOTICES.filter(n=>!dismissed.includes(n.id));
+  const visible=[...dynamicNotices, ...NOTICES].filter(n=>!dismissed.includes(n.id));
   el.innerHTML=visible.map(n=>`<div class="notice-card">
       <span class="notice-icon">${n.icon}</span>
       <div class="notice-body">
@@ -779,6 +789,28 @@ function renderNotices(){
       </div>
       <button class="notice-close" onclick="dismissNotice('${n.id}')" aria-label="Cerrar">✕</button>
     </div>`).join('');
+}
+async function refreshAdminNotices(){
+  if(!ADMIN_NOTICES_SHEET_ID) return;
+  try{
+    const cached=sessionStorage.getItem(ADMIN_NOTICES_CACHE_KEY);
+    if(cached){ dynamicNotices=JSON.parse(cached); renderNotices(); return; }
+    const res=await fetch(`https://docs.google.com/spreadsheets/d/${ADMIN_NOTICES_SHEET_ID}/gviz/tq?tqx=out:json`);
+    const text=await res.text();
+    const start=text.indexOf('{'), end=text.lastIndexOf('}');
+    const json=JSON.parse(text.slice(start,end+1));
+    const rows=json.table?.rows||[];
+    const today=todayISO();
+    dynamicNotices=rows.map((row,i)=>{
+      const cells=row.c||[];
+      const timestamp=cells[0]?.v!=null?String(cells[0].v):String(i);
+      const mensaje=(cells[1]?.v||'').toString().trim();
+      const hasta=(cells[2]?.v||'').toString().trim();
+      return {id:'admin-'+timestamp, icon:'📢', title:'Aviso del gimnasio', text:mensaje, hasta};
+    }).filter(n=>n.text && (!n.hasta || n.hasta>=today));
+    sessionStorage.setItem(ADMIN_NOTICES_CACHE_KEY, JSON.stringify(dynamicNotices));
+    renderNotices();
+  }catch(e){ /* sin internet o sheet no disponible — seguimos sin avisos del admin */ }
 }
 function dismissNotice(id){
   const dismissed=loadDismissedNotices();
