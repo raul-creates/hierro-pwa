@@ -720,6 +720,7 @@ async function init() {
   initSwipeDelete(document.getElementById('log-content'));
   initSwipeDelete(document.getElementById('routines-list'));
   initSwipeDelete(document.getElementById('wk-body'));
+  initSwipeDelete(document.getElementById('routine-exercises-container'));
   renderNotices();
   refreshAdminNotices();
   buildGuideGroups();
@@ -1532,7 +1533,9 @@ function buildRoutineExBlock(ex, hasNext){
   const canRm=editRoutine.exercises.length>1;
   const exData=EXERCISES.find(e=>e.id===ex.exId);
   const groupOpts=GROUPS.map(g=>`<option value="${g.id}"${ex.cat===g.id?' selected':''}>${g.label}</option>`).join('');
-  return`<div class="ex-block" id="rexblock-${ex.id}">
+  return`<div class="swipe-row" data-delete-fn="removeRoutineExercise" data-delete-arg="${ex.id}" data-swipe-disabled="${!canRm}">
+    <div class="swipe-bg"><span class="swipe-bg-icon">🗑️</span><span>Borrar</span></div>
+    <div class="swipe-content ex-block" id="rexblock-${ex.id}">
     <div class="ex-block-top">
       <div class="ex-selectors">
         <select class="step-select${!ex.cat?' ph':''}" onchange="updateRoutineExCat('${ex.id}',this.value)">
@@ -1561,6 +1564,7 @@ function buildRoutineExBlock(ex, hasNext){
       <span class="field-label" style="margin:0">Registrar como duración</span>
       <input type="checkbox" ${ex.cardioDuration?'checked':''} onchange="updateRoutineCardioDuration('${ex.id}', this.checked)">
     </label>`:''}
+    </div>
   </div>`;
 }
 function updateRoutineExCat(id,cat){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.cat=cat;ex.exId='';renderRoutineExercises();}
@@ -1570,7 +1574,12 @@ function updateRoutinePerSide(id,checked){const ex=editRoutine.exercises.find(e=
 function updateRoutineLinkedToNext(id,checked){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.linkedToNext=checked;}
 function updateRoutineCardioDuration(id,checked){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.cardioDuration=checked;}
 function addRoutineExercise(){editRoutine.exercises.push(emptyRoutineEx());renderRoutineExercises();setTimeout(()=>{const b=document.querySelectorAll('#routine-exercises-container .ex-block');if(b.length)b[b.length-1].scrollIntoView({behavior:'smooth'});},50);}
-function removeRoutineExercise(id){if(editRoutine.exercises.length<=1)return;editRoutine.exercises=editRoutine.exercises.filter(e=>e.id!==id);renderRoutineExercises();}
+function removeRoutineExercise(id){
+  if(editRoutine.exercises.length<=1)return;
+  if(!confirm('¿Quitar este ejercicio de la rutina?'))return;
+  editRoutine.exercises=editRoutine.exercises.filter(e=>e.id!==id);
+  renderRoutineExercises();
+}
 function validateRoutineSave(){
   const name=document.getElementById('routine-name')?.value.trim();
   document.getElementById('btn-routine-save').disabled=!(editRoutine && name && editRoutine.exercises.every(e=>e.exId));
