@@ -14,7 +14,7 @@ confirmación antes de borrar:
 |---|---|---|---|---|
 | Sesiones del Log | `#log-content` | `.session-card` (en `renderLog`, index.html ~L764) | `deleteSession(id)` (~L820) | Sí |
 | Rutinas de la lista | `#routines-list` | `.session-card` (en `renderRoutinesList`, ~L1431) | `deleteRoutine(id)` (~L1525) | Sí |
-| Sets del modo guiado | `#wk-sets` | `.set-row` (en `buildWorkoutSetRow`, ~L1033) | `removeWorkoutSet(si)` (~L1154) | No |
+| Sets del modo guiado | `#wk-body` (no `#wk-sets` — ver más abajo) | `.set-row` (en `buildWorkoutSetRow`, ~L1033) | `removeWorkoutSet(si)` (~L1154) | No |
 | Ejercicios del editor de rutina | `#routine-exercises-container` | `.ex-block` (en `buildRoutineExBlock`, ~L1471) | `removeRoutineExercise(id)` (~L1509) | No |
 
 Este spec cubre las 4 listas de una sola vez porque comparten el mismo
@@ -132,11 +132,27 @@ disponible, sin tocar su comportamiento en desktop.
 ## El handler genérico
 
 Una única función, llamada una vez por contenedor al iniciar la app
-(no en cada render — los 4 contenedores (`#log-content`,
-`#routines-list`, `#wk-sets`, `#routine-exercises-container`) son
-elementos fijos del DOM que solo cambian su `innerHTML`, nunca se
-recrean, así que los listeners delegados sobreviven a todos los
-re-renders futuros sin volver a engancharse):
+(no en cada render). Los contenedores tienen que ser elementos que
+**nunca se recrean** — solo se les reemplaza el `innerHTML` por dentro
+— para que el listener delegado sobreviva a todos los re-renders
+futuros sin volver a engancharse:
+
+- `#log-content` (`renderLog`) — estático, ok.
+- `#routines-list` (`renderRoutinesList`) — estático, ok.
+- `#routine-exercises-container` (`renderRoutineExercises`) — estático, ok.
+- **`#wk-sets` NO sirve**: es parte del `innerHTML` que
+  `renderWorkoutScreen()` le asigna a `#wk-body` (index.html, función
+  `renderWorkoutScreen`, línea del `body.innerHTML=` que arma toda la
+  pantalla) — se recrea de cero en cada render, así que un listener
+  puesto ahí se pierde apenas cambiás de ejercicio. Hay que delegar
+  sobre **`#wk-body`** en su lugar (ese sí es estático — el `<div
+  class="wk-body" id="wk-body"></div>` vive en el HTML fijo, y
+  `renderWorkoutScreen` solo reemplaza su contenido, no el div en sí).
+  `#wk-body` contiene más que los sets (también el nombre del
+  ejercicio, los botones de navegación, etc.), pero eso no importa:
+  `closest('.swipe-row')` en el handler ya filtra a qué elemento
+  aplica el gesto, delegar desde más arriba en el árbol no cambia el
+  comportamiento.
 
 ```js
 function initSwipeDelete(container){
@@ -182,13 +198,12 @@ Se llama así, una vez, al final de `init()`:
 ```js
 initSwipeDelete(document.getElementById('log-content'));
 initSwipeDelete(document.getElementById('routines-list'));
-initSwipeDelete(document.getElementById('wk-sets'));
+initSwipeDelete(document.getElementById('wk-body'));
 initSwipeDelete(document.getElementById('routine-exercises-container'));
 ```
 
-`#wk-sets` y `#routine-exercises-container` existen en el DOM desde
-que se carga la página (son `<div>` vacíos que después se llenan vía
-`innerHTML`), así que `initSwipeDelete` puede llamarse sobre los 4 sin
+Los 4 son `<div>` vacíos en el HTML estático que después se llenan vía
+`innerHTML`, así que `initSwipeDelete` puede llamarse sobre los 4 sin
 esperar a que tengan contenido.
 
 ## Confirmación al completar el swipe
