@@ -68,6 +68,19 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .card-ex-name{color:#99A;font-size:13px;font-weight:600}
 .card-ex-sets{color:#9195A3;font-size:12px;margin-left:5px}
 
+/* ── SWIPE TO DELETE ── */
+.swipe-row{position:relative;overflow:hidden;border-radius:11px;margin-bottom:9px}
+.swipe-row.swipe-row-tight{border-radius:8px;margin-bottom:5px}
+.swipe-row .session-card,.swipe-row .ex-block,.swipe-row .set-row{margin-bottom:0}
+.swipe-bg{position:absolute;inset:0;background:#c0392b;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 20px;color:#fff;font-weight:700;opacity:0}
+.swipe-bg-icon{font-size:16px}
+.swipe-content{position:relative;background:#0F1117}
+@media (hover: none){
+  .swipe-row .card-actions,
+  .swipe-row .btn-rm-set,
+  .swipe-row .btn-remove-ex{display:none}
+}
+
 /* ── MUSCLE TAG ── */
 .mtag{display:inline-block;background:rgba(255,210,0,0.09);color:#FFD200;border:1px solid rgba(255,210,0,0.2);border-radius:3px;font-size:12px;padding:1px 6px;margin:2px 3px 2px 0;font-weight:600}
 .mtag-toggle{cursor:pointer;background:none;border-color:transparent;color:#6B6E7A}
@@ -640,6 +653,44 @@ let effortScale = 'rpe';
 let activeWorkout = null;
 let workoutTimerInterval = null;
 
+// ── SWIPE TO DELETE ───────────────────────────────────────────────────────────
+function initSwipeDelete(container){
+  const THRESHOLD=60, MAX=88;
+  let row=null, startX=0, startY=0, dx=0, axis=null;
+  container.addEventListener('touchstart', e=>{
+    row=e.target.closest('.swipe-row');
+    if(!row || row.dataset.swipeDisabled==='true'){ row=null; return; }
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY; dx=0; axis=null;
+  }, {passive:true});
+  container.addEventListener('touchmove', e=>{
+    if(!row) return;
+    const t=e.touches[0];
+    const ddx=t.clientX-startX, ddy=t.clientY-startY;
+    if(axis===null){
+      if(Math.abs(ddx)<8 && Math.abs(ddy)<8) return;
+      axis = Math.abs(ddx)>Math.abs(ddy) ? 'x' : 'y';
+      if(axis==='y'){ row=null; return; }
+    }
+    dx=Math.max(-MAX, Math.min(0, ddx));
+    row.querySelector('.swipe-content').style.transform=`translateX(${dx}px)`;
+    row.querySelector('.swipe-bg').style.opacity=String(Math.min(1,(-dx)/THRESHOLD));
+    e.preventDefault();
+  }, {passive:false});
+  container.addEventListener('touchend', ()=>{
+    if(!row) return;
+    const r=row, wasThreshold=(-dx)>=THRESHOLD;
+    r.querySelector('.swipe-content').style.transform='translateX(0)';
+    r.querySelector('.swipe-bg').style.opacity='0';
+    if(wasThreshold){
+      const fn=window[r.dataset.deleteFn];
+      const rawArg=r.dataset.deleteArg;
+      const arg=/^\d+$/.test(rawArg) ? Number(rawArg) : rawArg;
+      if(typeof fn==='function') fn(arg);
+    }
+    row=null; dx=0; axis=null;
+  });
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 async function init() {
   document.getElementById('loader-quote').textContent = randomQuote();
@@ -665,6 +716,7 @@ async function init() {
   document.getElementById('app').style.display='block';
   document.getElementById('log-quote').textContent = randomQuote();
   renderLog();
+  initSwipeDelete(document.getElementById('log-content'));
   renderNotices();
   refreshAdminNotices();
   buildGuideGroups();
@@ -761,13 +813,16 @@ function renderLog(){
     const total=s.exercises.reduce((a,e)=>a+e.sets.length,0);
     const grpIds=[...new Set(valid.map(e=>{const ex=EXERCISES.find(x=>x.id===e.exId);return ex?GROUP_MERGE[ex.category]:null;}).filter(Boolean))];
     const grpLabels=grpIds.map(id=>GROUPS.find(g=>g.id===id)?.label||id);
-    return`<div class="session-card">
+    return`<div class="swipe-row" data-delete-fn="deleteSession" data-delete-arg="${s.id}">
+      <div class="swipe-bg"><span class="swipe-bg-icon">🗑️</span><span>Borrar</span></div>
+      <div class="swipe-content session-card">
       <div class="card-top">
         <div><div class="card-date">${s.date}</div><div class="card-meta">${valid.length} ejercicio${valid.length!==1?'s':''} · ${total} serie${total!==1?'s':''}</div></div>
         <div class="card-actions"><button onclick="editSessionFn('${s.id}')">✏️</button><button onclick="deleteSession('${s.id}')">🗑️</button></div>
       </div>
       <div>${grpLabels.map(l=>`<span class="group-tag">${l}</span>`).join('')}</div>
       <div>${valid.map(e=>{const ex=EXERCISES.find(x=>x.id===e.exId);if(!ex)return'';const isCardio=!!e.cardioDuration;const ss=e.sets.map(st=>isCardio?`${st.reps||'—'} min`:`${st.weight||'—'}kg×${st.reps||'—'}`).join(' ');return`<div class="card-ex-row"><span class="card-ex-name">${esName(ex)}</span><span class="card-ex-sets">${ss}</span></div>`;}).join('')}</div>
+      </div>
     </div>`;
   }).join('');
 }
