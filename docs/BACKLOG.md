@@ -25,4 +25,4 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 - [x] **Swipe para borrar** — hecho (2026-09-10, gesto táctil con reveal progresivo + confirm() al completar el swipe en las 4 listas; en desktop se mantiene el botón explícito vía `@media (hover:none)`).
 - **Tarjetas de aviso rotativas**: en vez de apilar todas las tarjetas de `NOTICES` una debajo de la otra en el Log, que vayan rotando (tipo carrusel) — mezclando avisos urgentes del admin, tips de features de la app (ej. "¿Sabías que hay un glosario en la Guía?"), y frases motivacionales cortas. Surgió charlando las tarjetas de G/avisos del admin.
 
-_Última actualización: 2026-09-10 (swipe para borrar, avisos del admin del gym) — roadmap A–I completo + 2 de 2 ideas sueltas._
+_Última actualización: 2026-09-10 (swipe para borrar, avisos del admin del gym) — roadmap A–I completo + 2 de 3 ideas sueltas._
