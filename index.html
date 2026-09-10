@@ -719,6 +719,7 @@ async function init() {
   renderLog();
   initSwipeDelete(document.getElementById('log-content'));
   initSwipeDelete(document.getElementById('routines-list'));
+  initSwipeDelete(document.getElementById('wk-body'));
   renderNotices();
   refreshAdminNotices();
   buildGuideGroups();
@@ -1087,7 +1088,9 @@ function buildWorkoutSetRow(entry, si, isBodyweight, isCardio){
         <input type="number" inputmode="decimal" placeholder="${isBodyweight?'Corporal':'0'}" value="${s.weight}" onchange="updateWorkoutSet(${si},'weight',this.value)">
         <button type="button" class="stp-btn" onclick="bumpWorkoutSet(${si},'weight',2.5)">+</button>
       </div>`;
-  return `<div class="set-row">
+  return `<div class="swipe-row swipe-row-tight" data-delete-fn="removeWorkoutSet" data-delete-arg="${si}" data-swipe-disabled="${disabled}">
+    <div class="swipe-bg"><span class="swipe-bg-icon">🗑️</span><span>Borrar</span></div>
+    <div class="swipe-content set-row">
       <span class="set-dot">●</span>
       ${weightBlock}
       <div class="set-iw stp-wrap">
@@ -1097,7 +1100,8 @@ function buildWorkoutSetRow(entry, si, isBodyweight, isCardio){
       </div>
       <button class="btn-rm-set" onclick="removeWorkoutSet(${si})" ${disabled?'disabled style="opacity:0.2"':''}>✕</button>
       <input type="checkbox" class="set-done" ${s.done?'checked':''} onchange="toggleWorkoutSet(${si})">
-    </div>`;
+    </div>
+  </div>`;
 }
 function togglePerSide(){
   const entry=activeWorkout.entries[activeWorkout.cur];
@@ -1211,6 +1215,7 @@ function addWorkoutSet(){
 function removeWorkoutSet(si){
   const entry=activeWorkout.entries[activeWorkout.cur];
   if(entry.sets.length<=1)return;
+  if(!confirm('¿Eliminar esta serie?'))return;
   entry.sets.splice(si,1);
   renderWorkoutScreen();
 }
