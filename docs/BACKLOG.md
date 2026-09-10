@@ -21,7 +21,7 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 
 ## Ideas sueltas (aparte del roadmap A–I)
 
-- **Avisos del admin del gym**: que el admin pueda mandar mensajes desde adentro de la app ("lunes cerrado por feriado nacional", "aumento de cuota en noviembre", etc). Encaja con el modelo white-label (cada gym comunicándose con sus alumnos desde su propia instancia de la app).
+- [x] **Avisos del admin del gym** — hecho (2026-09-10, sin backend propio: Google Form → Sheet publicada → HIERRO la lee como JSON vía el endpoint gviz de Google Sheets, cacheada por sesión, se integra al mismo sistema de NOTICES de G. Configuración: constante `ADMIN_NOTICES_SHEET_ID` en `index.html`, vacía por default).
 - **Swipe para borrar**: reemplazar los botones de borrar explícitos (sets, ejercicios, rutinas, sesiones del Log) por un gesto de swipe, aplicado consistentemente en toda la app. Surgió charlando D1 (RPE), es un cambio de patrón de interacción transversal, no parte de D.
 
-_Última actualización: 2026-09-10 (G, I) — roadmap A–I completo._
+_Última actualización: 2026-09-10 (avisos del admin del gym) — roadmap A–I completo + 1 de 2 ideas sueltas._
