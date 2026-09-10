@@ -311,6 +311,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
           <button class="btn-ghost" onclick="exportBackup()">Exportar backup</button>
           <button class="btn-ghost" onclick="importBackupFile()">Importar backup</button>
         </div>
+        <div id="settings-last-backup" style="color:#6B6E7A;font-size:12px;margin-top:8px"></div>
       </div>
     </div>
   </div>
@@ -447,6 +448,14 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
   <div class="picker-body" id="share-import-body"></div>
 </div>
 
+<div class="picker-overlay" id="backup-import-overlay">
+  <div class="header" style="border-bottom:none">
+    <button class="btn-back" onclick="cancelBackupRestore()">←</button>
+    <span class="header-title">Restaurar backup</span>
+  </div>
+  <div class="picker-body" id="backup-import-body"></div>
+</div>
+
 <div class="picker-overlay" id="picker-overlay">
   <div class="header" style="border-bottom:none">
     <button class="btn-back" onclick="closePicker()">←</button>
@@ -465,6 +474,7 @@ const WEEK_KEY = 'hierro_week';
 const DAY_OVERRIDES_KEY = 'hierro_day_overrides';
 const REST_SEC_KEY = 'hierro_rest_sec';
 const EFFORT_SCALE_KEY = 'hierro_effort_scale';
+const LAST_BACKUP_KEY = 'hierro_last_backup';
 
 // ── CATEGORY / SUBGROUP CONFIG ─────────────────────────────────────────────
 
@@ -647,7 +657,15 @@ function showSettings(){
   document.getElementById('settings-rest-sec').value=restSec;
   document.getElementById('settings-effort-rpe').classList.toggle('active', effortScale==='rpe');
   document.getElementById('settings-effort-rir').classList.toggle('active', effortScale==='rir');
+  renderLastBackupLabel();
   showView('view-settings');
+}
+function loadLastBackup(){ return localStorage.getItem(LAST_BACKUP_KEY)||''; }
+function saveLastBackup(){ localStorage.setItem(LAST_BACKUP_KEY, todayISO()); }
+function renderLastBackupLabel(){
+  const d=loadLastBackup();
+  const el=document.getElementById('settings-last-backup');
+  if(el) el.textContent = d ? `Último backup: ${d}` : 'Todavía no hiciste un backup';
 }
 function updateRestSec(val){const n=parseInt(val,10);restSec=Number.isFinite(n)&&n>=0?n:0;saveRestSec();}
 function loadEffortScale(){const v=localStorage.getItem(EFFORT_SCALE_KEY);return v==='rir'?'rir':'rpe';}
@@ -676,6 +694,7 @@ function showView(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.getElementById('guide-detail-overlay').classList.remove('active');
+  document.getElementById('backup-import-overlay').classList.remove('active');
   window.scrollTo(0,0);
   updateStartButton();
 }
@@ -738,7 +757,10 @@ function exportBackup(){
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  saveLastBackup();
+  renderLastBackupLabel();
 }
+let pendingBackupData=null;
 function importBackupFile(){
   const input=document.createElement('input');
   input.type='file'; input.accept='application/json,.json';
@@ -751,16 +773,37 @@ function importBackupFile(){
       if(!data || !data.version || !Array.isArray(data.log) || !Array.isArray(data.hierro_routines) || (!data.hierro_week || typeof data.hierro_week!=='object' || Array.isArray(data.hierro_week))){
         toast('No es un archivo de backup válido'); return;
       }
-      if(!confirm('Esto va a reemplazar todos tus datos actuales por los del backup. ¿Confirmás?')) return;
-      const dayOverridesData = (data.hierro_day_overrides && typeof data.hierro_day_overrides==='object' && !Array.isArray(data.hierro_day_overrides)) ? data.hierro_day_overrides : {};
-      log=data.log; routines=data.hierro_routines; week=data.hierro_week; dayOverrides=dayOverridesData;
-      saveLog(); saveRoutines(); saveWeek(); saveDayOverrides();
-      renderLog(); renderPlanSemanal();
-      toast('Backup restaurado');
+      pendingBackupData=data;
+      const expDate = typeof data.exported==='string' ? data.exported.slice(0,10) : 'fecha desconocida';
+      document.getElementById('backup-import-body').innerHTML=`
+        <div style="padding:14px;color:#9195A3;font-size:14px;line-height:1.5">
+          Este backup fue exportado el <strong style="color:#fff">${expDate}</strong> y contiene
+          <strong style="color:#fff">${data.log.length} ${data.log.length!==1?'sesiones':'sesión'}</strong> y
+          <strong style="color:#fff">${data.hierro_routines.length} rutina${data.hierro_routines.length!==1?'s':''}</strong>.
+          Esto va a reemplazar TODOS tus datos actuales — no se puede deshacer.
+        </div>
+        <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px">
+          <button class="btn-primary" style="padding:11px 0" onclick="confirmBackupRestore()">Restaurar</button>
+          <button class="btn-ghost" style="padding:9px 0" onclick="cancelBackupRestore()">Cancelar</button>
+        </div>`;
+      document.getElementById('backup-import-overlay').classList.add('active');
     };
     reader.readAsText(file);
   };
   input.click();
+}
+function cancelBackupRestore(){
+  pendingBackupData=null;
+  document.getElementById('backup-import-overlay').classList.remove('active');
+}
+function confirmBackupRestore(){
+  const data=pendingBackupData; if(!data) return;
+  const dayOverridesData = (data.hierro_day_overrides && typeof data.hierro_day_overrides==='object' && !Array.isArray(data.hierro_day_overrides)) ? data.hierro_day_overrides : {};
+  log=data.log; routines=data.hierro_routines; week=data.hierro_week; dayOverrides=dayOverridesData;
+  saveLog(); saveRoutines(); saveWeek(); saveDayOverrides();
+  renderLog(); renderPlanSemanal();
+  toast(`Backup restaurado: ${log.length} ${log.length!==1?'sesiones':'sesión'}, ${routines.length} rutina${routines.length!==1?'s':''}`);
+  cancelBackupRestore();
 }
 
 
