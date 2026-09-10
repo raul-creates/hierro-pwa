@@ -71,7 +71,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 /* ── SWIPE TO DELETE ── */
 .swipe-row{position:relative;overflow:hidden;border-radius:11px;margin-bottom:9px}
 .swipe-row.swipe-row-tight{border-radius:8px;margin-bottom:5px}
-.swipe-row .session-card,.swipe-row .ex-block,.swipe-row .set-row{margin-bottom:0}
+.swipe-row>.swipe-content{margin-bottom:0}
 .swipe-bg{position:absolute;inset:0;background:#c0392b;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 20px;color:#fff;font-weight:700;opacity:0}
 .swipe-bg-icon{font-size:16px}
 .swipe-content{position:relative}
@@ -684,8 +684,7 @@ function initSwipeDelete(container){
     r.querySelector('.swipe-bg').style.opacity='0';
     if(wasThreshold){
       const fn=window[r.dataset.deleteFn];
-      const rawArg=r.dataset.deleteArg;
-      const arg=/^\d+$/.test(rawArg) ? Number(rawArg) : rawArg;
+      const arg=r.dataset.deleteArg;
       if(typeof fn==='function') fn(arg);
     }
     row=null; dx=0; axis=null;
@@ -1214,6 +1213,7 @@ function addWorkoutSet(){
   renderWorkoutScreen();
 }
 function removeWorkoutSet(si){
+  si = Number(si);
   const entry=activeWorkout.entries[activeWorkout.cur];
   if(entry.sets.length<=1)return;
   if(!confirm('¿Eliminar esta serie?'))return;
@@ -1491,7 +1491,7 @@ function renderRoutinesList(){
       :routinePickMode==='share'?`shareRoutine('${r.id}')`
       :`newSessionFromRoutine(routines.find(x=>x.id==='${r.id}'))`;
     const actions=routinePickMode?'':`<div class="card-actions"><button onclick="event.stopPropagation();editRoutineFn('${r.id}')">✏️</button><button onclick="event.stopPropagation();deleteRoutine('${r.id}')">🗑️</button></div>`;
-    const rowOpen = routinePickMode ? '<div>' : `<div class="swipe-row" data-delete-fn="deleteRoutine" data-delete-arg="${r.id}"><div class="swipe-bg"><span class="swipe-bg-icon">🗑️</span><span>Borrar</span></div><div class="swipe-content session-card">`;
+    const rowOpen = routinePickMode ? '<div class="session-card">' : `<div class="swipe-row" data-delete-fn="deleteRoutine" data-delete-arg="${r.id}"><div class="swipe-bg"><span class="swipe-bg-icon">🗑️</span><span>Borrar</span></div><div class="swipe-content session-card">`;
     const rowClose = routinePickMode ? '</div>' : '</div></div>';
     return `${rowOpen}
       <div class="card-top">
