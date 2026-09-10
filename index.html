@@ -202,8 +202,8 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .toast.show{opacity:1}
 
 /* ── BACKUP FOOTER ── */
-.backup-footer{display:flex;gap:8px;padding:20px 14px 24px;justify-content:center}
-.backup-footer button{flex:1;max-width:200px}
+.backup-footer{display:flex;gap:8px}
+.backup-footer button{flex:1}
 
 /* ── PLAN SEMANAL ── */
 .plan-card{background:#13151F;border:1px solid #1E2130;border-radius:11px;padding:12px 13px;margin:12px 14px 0}
@@ -272,10 +272,6 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
       </div>
     </div>
     <div class="log-content" id="log-content"></div>
-    <div class="backup-footer">
-      <button class="btn-ghost" onclick="exportBackup()">Exportar backup</button>
-      <button class="btn-ghost" onclick="importBackupFile()">Importar backup</button>
-    </div>
   </div>
 
   <!-- ── ROUTINES ── -->
@@ -307,6 +303,13 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
         <div class="gd-prog-toggle">
           <button type="button" class="gsg-btn" id="settings-effort-rpe" onclick="setEffortScale('rpe')">RPE (1-10)</button>
           <button type="button" class="gsg-btn" id="settings-effort-rir" onclick="setEffortScale('rir')">RIR (0-5)</button>
+        </div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Backup completo</div>
+        <div class="backup-footer">
+          <button class="btn-ghost" onclick="exportBackup()">Exportar backup</button>
+          <button class="btn-ghost" onclick="importBackupFile()">Importar backup</button>
         </div>
       </div>
     </div>
