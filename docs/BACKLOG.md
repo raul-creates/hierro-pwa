@@ -14,7 +14,7 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
   - [x] D4. Supersets — hecho (2026-09-02, linkedToNext suprime el rest timer entre ejercicios encadenados, sin rondas)
   - [x] D5. Cardio — hecho (2026-09-02, duración en minutos reinterpretando `reps`, sin campos nuevos; B y C desactivados para cardio)
 - [x] **E. Compartir rutina por link/QR** — hecho (2026-09-10, solo link — sin QR para no agregar dependencias; ver commit)
-- [ ] **F. Backup/restore amigable**
+- [x] **F. Backup/restore amigable** — hecho (2026-09-10, movido a Ajustes + recordatorio de último backup + vista previa antes de restaurar)
 - [ ] **G. Guía de instalación PWA**
 - [x] **H. Pasada de diseño (tamaños, tipografía)** — hecho (2026-09-10, botones plan semanal, contraste de tags toggle, nombres truncados en Stats — ver commit)
 - [ ] **I. Glosario de términos**
@@ -24,4 +24,4 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 - **Avisos del admin del gym**: que el admin pueda mandar mensajes desde adentro de la app ("lunes cerrado por feriado nacional", "aumento de cuota en noviembre", etc). Encaja con el modelo white-label (cada gym comunicándose con sus alumnos desde su propia instancia de la app).
 - **Swipe para borrar**: reemplazar los botones de borrar explícitos (sets, ejercicios, rutinas, sesiones del Log) por un gesto de swipe, aplicado consistentemente en toda la app. Surgió charlando D1 (RPE), es un cambio de patrón de interacción transversal, no parte de D.
 
-_Última actualización: 2026-09-10 (H)._
+_Última actualización: 2026-09-10 (F)._
