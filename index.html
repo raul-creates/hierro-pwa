@@ -718,6 +718,7 @@ async function init() {
   document.getElementById('log-quote').textContent = randomQuote();
   renderLog();
   initSwipeDelete(document.getElementById('log-content'));
+  initSwipeDelete(document.getElementById('routines-list'));
   renderNotices();
   refreshAdminNotices();
   buildGuideGroups();
@@ -1484,7 +1485,9 @@ function renderRoutinesList(){
       :routinePickMode==='share'?`shareRoutine('${r.id}')`
       :`newSessionFromRoutine(routines.find(x=>x.id==='${r.id}'))`;
     const actions=routinePickMode?'':`<div class="card-actions"><button onclick="event.stopPropagation();editRoutineFn('${r.id}')">✏️</button><button onclick="event.stopPropagation();deleteRoutine('${r.id}')">🗑️</button></div>`;
-    return `<div class="session-card">
+    const rowOpen = routinePickMode ? '<div>' : `<div class="swipe-row" data-delete-fn="deleteRoutine" data-delete-arg="${r.id}"><div class="swipe-bg"><span class="swipe-bg-icon">🗑️</span><span>Borrar</span></div><div class="swipe-content session-card">`;
+    const rowClose = routinePickMode ? '</div>' : '</div></div>';
+    return `${rowOpen}
       <div class="card-top">
         <div onclick="${tapFn}" style="cursor:pointer;flex:1">
           <div class="card-date">${r.name}</div>
@@ -1492,7 +1495,7 @@ function renderRoutinesList(){
         </div>
         ${actions}
       </div>
-    </div>`;
+    ${rowClose}`;
   }).join('');
 }
 
