@@ -989,7 +989,7 @@ function buildActiveWorkout(routine, editingSession){
       }))
     };
   }
-  const entries = routine ? routine.exercises.map(re=>({
+  const entries = routine ? routine.exercises.filter(re=>re.exId).map(re=>({
     id: uid(), cat: re.cat, exId: re.exId, targetReps: re.reps||'', effort: '', perSide: !!re.perSide, linkedToNext: !!re.linkedToNext,
     cardioDuration: entryCardioDuration(re),
     sets: Array.from({length: re.sets||1}, ()=>({weight:'', reps:'', done:false}))
