@@ -116,7 +116,6 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .btn-rm-set{background:none;border:none;color:#6B6E7A;font-size:14px;cursor:pointer;padding:0;width:24px;text-align:center;flex-shrink:0}
 .btn-add-set{background:none;border:1px dashed #1E2130;border-radius:7px;color:#6B6E7A;padding:6px 0;width:100%;font-size:13px;cursor:pointer;font-weight:600;margin-top:1px}
 .btn-add-ex{background:#1A1D2E;border:1px solid #1E2130;border-radius:9px;color:#9195A3;padding:10px 0;width:100%;font-size:14px;cursor:pointer;font-weight:600;margin-bottom:12px}
-.editor-footer{position:fixed;bottom:56px;left:0;right:0;padding:10px 14px;background:#0F1117;border-top:1px solid #1E2130;display:flex;gap:9px;max-width:480px;margin:0 auto}
 .btn-cancel{flex:1;background:#1A1D2E;border:none;border-radius:9px;color:#9195A3;padding:12px 0;font-size:15px;cursor:pointer;font-weight:600}
 .btn-save{flex:2;background:#FFD200;border:none;border-radius:9px;color:#0F1117;padding:12px 0;font-size:15px;cursor:pointer;font-weight:800}
 .btn-save:disabled{background:#1A1D2E;color:#333;cursor:default}
@@ -302,7 +301,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
       <div class="logo-block"><div class="wordmark" style="font-size:17px">Rutinas</div></div>
       <div class="header-actions">
         <button class="btn-ghost" onclick="showTemplatePicker()">Plantillas</button>
-        <button class="btn-primary" onclick="newRoutine(null)">+ Rutina</button>
+        <button class="btn-primary" onclick="newRoutine()">+ Rutina</button>
       </div>
     </div>
     <div id="plan-semanal"></div>
@@ -347,14 +346,10 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
     <div class="editor-content">
       <div class="field-group">
         <div class="field-label">Nombre</div>
-        <input type="text" id="routine-name" placeholder="Ej. Push, Pull, Piernas" oninput="validateRoutineSave()" style="width:100%;background:#1A1D2E;border:1px solid #252840;border-radius:7px;color:#fff;padding:8px 9px;font-size:15px;outline:none">
+        <input type="text" id="routine-name" placeholder="Ej. Push, Pull, Piernas" onchange="updateRoutineName(this.value)" style="width:100%;background:#1A1D2E;border:1px solid #252840;border-radius:7px;color:#fff;padding:8px 9px;font-size:15px;outline:none">
       </div>
       <div id="routine-exercises-container"></div>
       <button class="btn-add-ex" onclick="addRoutineExercise()">+ Ejercicio</button>
-    </div>
-    <div class="editor-footer">
-      <button class="btn-cancel" onclick="cancelRoutineEdit()">Cancelar</button>
-      <button class="btn-save" id="btn-routine-save" onclick="saveRoutine()" disabled>Guardar rutina</button>
     </div>
   </div>
 
@@ -647,8 +642,8 @@ let gFiltered = [];
 let gChartMetric = 'max';
 let pickerExBlockId = '';
 let pickerSearch = '';
-let editRoutine = null;
-let editRoutinePreassignDay = null;
+let editingRoutineId = null;
+function currentRoutine(){ return routines.find(r=>r.id===editingRoutineId); }
 let restSec = 90;
 let effortScale = 'rpe';
 let activeWorkout = null;
@@ -1505,32 +1500,32 @@ function renderRoutinesList(){
   }).join('');
 }
 
-function newRoutine(weekday){
-  editRoutine={id:uid(), name:'', exercises:[emptyRoutineEx()]};
-  editRoutinePreassignDay=weekday;
-  const dayName = weekday!=null ? WEEKDAY_NAMES[weekday] : null;
-  document.getElementById('routine-editor-title').textContent = dayName ? `Nueva rutina — ${dayName.charAt(0).toUpperCase()+dayName.slice(1)}` : 'Nueva rutina';
+function newRoutine(){
+  const r={id:uid(), name:'', exercises:[emptyRoutineEx()]};
+  routines.push(r);
+  saveRoutines();
+  editingRoutineId=r.id;
+  document.getElementById('routine-editor-title').textContent='Nueva rutina';
   document.getElementById('routine-name').value='';
   renderRoutineExercises();
   showView('view-routine-edit');
 }
 function editRoutineFn(id){
   const r=routines.find(x=>x.id===id); if(!r)return;
-  editRoutine={id:r.id, name:r.name, exercises:r.exercises.map(e=>({...e,id:uid()}))};
-  editRoutinePreassignDay=null;
+  editingRoutineId=id;
   document.getElementById('routine-editor-title').textContent='Editar rutina';
   document.getElementById('routine-name').value=r.name;
   renderRoutineExercises();
   showView('view-routine-edit');
 }
-function cancelRoutineEdit(){ editRoutinePreassignDay!=null ? showLog() : showRoutines(); }
+function cancelRoutineEdit(){ showRoutines(); }
 
 function renderRoutineExercises(){
-  document.getElementById('routine-exercises-container').innerHTML=editRoutine.exercises.map((ex,i)=>buildRoutineExBlock(ex, i<editRoutine.exercises.length-1)).join('');
-  validateRoutineSave();
+  const r=currentRoutine(); if(!r)return;
+  document.getElementById('routine-exercises-container').innerHTML=r.exercises.map((ex,i)=>buildRoutineExBlock(ex, i<r.exercises.length-1, r.exercises.length)).join('');
 }
-function buildRoutineExBlock(ex, hasNext){
-  const canRm=editRoutine.exercises.length>1;
+function buildRoutineExBlock(ex, hasNext, totalCount){
+  const canRm=totalCount>1;
   const exData=EXERCISES.find(e=>e.id===ex.exId);
   const groupOpts=GROUPS.map(g=>`<option value="${g.id}"${ex.cat===g.id?' selected':''}>${g.label}</option>`).join('');
   return`<div class="swipe-row" data-delete-fn="removeRoutineExercise" data-delete-arg="${ex.id}" data-swipe-disabled="${!canRm}">
@@ -1567,33 +1562,21 @@ function buildRoutineExBlock(ex, hasNext){
     </div>
   </div>`;
 }
-function updateRoutineExCat(id,cat){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.cat=cat;ex.exId='';renderRoutineExercises();}
-function updateRoutineExId(id,val){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.exId=val;ex.cardioDuration=defaultCardioDuration(EXERCISES.find(x=>x.id===val));validateRoutineSave();}
-function updateRoutineField(id,field,val){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex[field]=field==='sets'?(parseInt(val,10)||0):val;}
-function updateRoutinePerSide(id,checked){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.perSide=checked;}
-function updateRoutineLinkedToNext(id,checked){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.linkedToNext=checked;}
-function updateRoutineCardioDuration(id,checked){const ex=editRoutine.exercises.find(e=>e.id===id);if(!ex)return;ex.cardioDuration=checked;}
-function addRoutineExercise(){editRoutine.exercises.push(emptyRoutineEx());renderRoutineExercises();setTimeout(()=>{const b=document.querySelectorAll('#routine-exercises-container .ex-block');if(b.length)b[b.length-1].scrollIntoView({behavior:'smooth'});},50);}
+function updateRoutineExCat(id,cat){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.cat=cat;ex.exId='';saveRoutines();renderRoutineExercises();}
+function updateRoutineExId(id,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.exId=val;ex.cardioDuration=defaultCardioDuration(EXERCISES.find(x=>x.id===val));saveRoutines();}
+function updateRoutineField(id,field,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex[field]=field==='sets'?(parseInt(val,10)||0):val;saveRoutines();}
+function updateRoutinePerSide(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.perSide=checked;saveRoutines();}
+function updateRoutineLinkedToNext(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.linkedToNext=checked;saveRoutines();}
+function updateRoutineCardioDuration(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.cardioDuration=checked;saveRoutines();}
+function updateRoutineName(val){const r=currentRoutine();if(!r)return;r.name=val.trim()||'Rutina';saveRoutines();document.getElementById('routine-name').value=r.name;}
+function addRoutineExercise(){const r=currentRoutine();if(!r)return;r.exercises.push(emptyRoutineEx());saveRoutines();renderRoutineExercises();setTimeout(()=>{const b=document.querySelectorAll('#routine-exercises-container .ex-block');if(b.length)b[b.length-1].scrollIntoView({behavior:'smooth'});},50);}
 function removeRoutineExercise(id){
-  if(editRoutine.exercises.length<=1)return;
+  const r=currentRoutine(); if(!r)return;
+  if(r.exercises.length<=1)return;
   if(!confirm('¿Quitar este ejercicio de la rutina?'))return;
-  editRoutine.exercises=editRoutine.exercises.filter(e=>e.id!==id);
-  renderRoutineExercises();
-}
-function validateRoutineSave(){
-  const name=document.getElementById('routine-name')?.value.trim();
-  document.getElementById('btn-routine-save').disabled=!(editRoutine && name && editRoutine.exercises.every(e=>e.exId));
-}
-function saveRoutine(){
-  const name=document.getElementById('routine-name').value.trim();
-  const clean={id:editRoutine.id, name, exercises:editRoutine.exercises.map(({cat,exId,sets,reps,perSide,linkedToNext,cardioDuration})=>({cat,exId,sets:sets||3,reps:reps||'',perSide:!!perSide,linkedToNext:!!linkedToNext,cardioDuration:!!cardioDuration}))};
-  const idx=routines.findIndex(r=>r.id===clean.id);
-  if(idx>=0) routines[idx]=clean; else routines.push(clean);
+  r.exercises=r.exercises.filter(e=>e.id!==id);
   saveRoutines();
-  if(editRoutinePreassignDay!=null){ week[String(editRoutinePreassignDay)]=clean.id; saveWeek(); }
-  toast('Rutina guardada');
-  renderPlanSemanal();
-  editRoutinePreassignDay!=null ? showLog() : showRoutines();
+  renderRoutineExercises();
 }
 function deleteRoutine(id){
   if(!confirm('¿Eliminar esta rutina?'))return;
@@ -1769,7 +1752,7 @@ function filterPicker(){
   renderPickerBody();
 }
 function renderPickerBody(){
-  const block = pickerMode==='routine' ? editRoutine.exercises.find(e=>e.id===pickerExBlockId)
+  const block = pickerMode==='routine' ? currentRoutine()?.exercises.find(e=>e.id===pickerExBlockId)
     : activeWorkout.entries.find(e=>e.id===pickerExBlockId);
   if(!block)return;
   const cat=block.cat;
