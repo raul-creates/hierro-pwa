@@ -1390,7 +1390,7 @@ function renderPlanSemanal(){
     const cls=['week-day'];
     if(isToday)cls.push('today');
     if(routine||isRest)cls.push('has-routine');
-    cellsHtml+=`<button class="${cls.join(' ')}" onclick="openDayOverlay('${iso}')">`
+    cellsHtml+=`<button class="${cls.join(' ')}" onclick="openDayOverlay('${iso}')">
       <div class="wd-letter">${WEEKDAY_LETTERS[wd]}</div>
       <div class="wd-name">${label}${hasOverride?' <span class="wd-ovr">·rep</span>':''}</div>
     </button>`;
