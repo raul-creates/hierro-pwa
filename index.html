@@ -1390,7 +1390,7 @@ function renderPlanSemanal(){
     const cls=['week-day'];
     if(isToday)cls.push('today');
     if(routine||isRest)cls.push('has-routine');
-    cellsHtml+=`<button class="${cls.join(' ')}" onclick="onWeekDayTap('${iso}')" onmousedown="startLongPress('${iso}')" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress('${iso}')" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()" ontouchcancel="cancelLongPress()">
+    cellsHtml+=`<button class="${cls.join(' ')}" onclick="openDayOverlay('${iso}')">`
       <div class="wd-letter">${WEEKDAY_LETTERS[wd]}</div>
       <div class="wd-name">${label}${hasOverride?' <span class="wd-ovr">·rep</span>':''}</div>
     </button>`;
@@ -1406,17 +1406,8 @@ function renderPlanSemanal(){
   </div>`;
 }
 
-let longPressTimer=null;
-let longPressFired=false;
 let dayOverlayIso='';
 let dayOverlayChoice=null;
-function startLongPress(iso){
-  longPressFired=false;
-  longPressTimer=setTimeout(()=>{longPressFired=true;openDayOverlay(iso);}, 500);
-}
-function cancelLongPress(){
-  if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}
-}
 function openDayOverlay(iso){
   dayOverlayIso=iso;
   dayOverlayChoice=null;
@@ -1461,16 +1452,6 @@ function applyDayOverride(scope){
   closeDayOverlay();
   renderPlanSemanal();
   toast('Día actualizado');
-}
-
-function onWeekDayTap(iso){
-  if(longPressFired){ longPressFired=false; return; }
-  const effId=effectiveRoutineId(iso);
-  if(effId==='rest'){ toast('Día de descanso'); return; }
-  const routine=effId?routines.find(r=>r.id===effId):null;
-  if(routine){ newSessionFromRoutine(routine); return; }
-  const wd=new Date(iso+'T12:00:00').getDay();
-  newRoutine(wd);
 }
 
 function showRoutines(){ routinePickMode=null; setActiveNav('bnav-routines'); renderPlanSemanal(); renderRoutinesList(); showView('view-routines'); }
