@@ -45,6 +45,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 /* ── LOG ── */
 .log-content{padding:12px 14px 0}
+#history-list{flex:1;overflow-y:auto;padding-bottom:20px}
 .notices{padding:4px 14px 20px;display:flex;flex-direction:column;gap:8px}
 .notice-card{background:#13151F;border:1px solid #1E2130;border-radius:10px;padding:11px 12px;display:flex;gap:10px;align-items:flex-start}
 .notice-icon{font-size:18px;flex-shrink:0;line-height:1.3}
@@ -779,6 +780,7 @@ function showView(id){
   document.getElementById('guide-detail-overlay').classList.remove('active');
   document.getElementById('backup-import-overlay').classList.remove('active');
   document.getElementById('glossary-overlay').classList.remove('active');
+  document.getElementById('history-overlay').classList.remove('active');
   window.scrollTo(0,0);
   updateStartButton();
 }
@@ -803,7 +805,10 @@ function editSessionFn(id){
 
 // ── HISTORIAL ─────────────────────────────────────────────────────────────────
 function openHistory(){ renderHistory(); document.getElementById('history-overlay').classList.add('active'); }
-function closeHistory(){ document.getElementById('history-overlay').classList.remove('active'); }
+function closeHistory(){
+  document.getElementById('history-overlay').classList.remove('active');
+  if(document.getElementById('view-stats').classList.contains('active')) renderStats();
+}
 function renderHistory(){
   const el=document.getElementById('history-list');
   const sorted=[...log].sort((a,b)=>b.date.localeCompare(a.date));
