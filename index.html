@@ -1493,13 +1493,21 @@ function newRoutine(){
 }
 function editRoutineFn(id){
   const r=routines.find(x=>x.id===id); if(!r)return;
+  let patched=false;
+  r.exercises.forEach(e=>{ if(!e.id){ e.id=uid(); patched=true; } });
+  if(patched) saveRoutines();
   editingRoutineId=id;
   document.getElementById('routine-editor-title').textContent='Editar rutina';
   document.getElementById('routine-name').value=r.name;
   renderRoutineExercises();
   showView('view-routine-edit');
 }
-function cancelRoutineEdit(){ showRoutines(); }
+function cancelRoutineEdit(){
+  const r=currentRoutine();
+  if(r && !r.name.trim()){ r.name='Rutina'; saveRoutines(); }
+  editingRoutineId=null;
+  showRoutines();
+}
 
 function renderRoutineExercises(){
   const r=currentRoutine(); if(!r)return;
@@ -1545,7 +1553,7 @@ function buildRoutineExBlock(ex, hasNext, totalCount){
 }
 function updateRoutineExCat(id,cat){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.cat=cat;ex.exId='';saveRoutines();renderRoutineExercises();}
 function updateRoutineExId(id,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.exId=val;ex.cardioDuration=defaultCardioDuration(EXERCISES.find(x=>x.id===val));saveRoutines();}
-function updateRoutineField(id,field,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex[field]=field==='sets'?(parseInt(val,10)||0):val;saveRoutines();}
+function updateRoutineField(id,field,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex[field]=field==='sets'?(parseInt(val,10)||3):val;saveRoutines();}
 function updateRoutinePerSide(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.perSide=checked;saveRoutines();}
 function updateRoutineLinkedToNext(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.linkedToNext=checked;saveRoutines();}
 function updateRoutineCardioDuration(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.cardioDuration=checked;saveRoutines();}
@@ -1563,6 +1571,7 @@ function deleteRoutine(id){
   if(!confirm('¿Eliminar esta rutina?'))return;
   routines=routines.filter(r=>r.id!==id);
   saveRoutines();
+  if(editingRoutineId===id) editingRoutineId=null;
   Object.keys(week).forEach(k=>{if(week[k]===id) week[k]=null;});
   saveWeek();
   Object.keys(dayOverrides).forEach(k=>{if(dayOverrides[k]===id) delete dayOverrides[k];});
