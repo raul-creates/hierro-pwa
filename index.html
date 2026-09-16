@@ -408,6 +408,9 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
   <div class="view" id="view-stats">
     <div class="header">
       <div class="logo-block"><div class="wordmark" style="font-size:17px">Estadísticas</div></div>
+      <div class="header-actions">
+        <button class="btn-ghost" onclick="openHistory()" aria-label="Historial">🕓</button>
+      </div>
     </div>
     <div class="stats-content" id="stats-content"></div>
   </div>
@@ -2086,9 +2089,12 @@ function renderStats(){
   </div>
 
   <div class="stat-section">
-    <div class="stat-section-title">Últimas sesiones</div>
+    <div class="stat-section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Sesiones recientes</span>
+      <button class="btn-ghost" onclick="openHistory()" style="font-size:12px;padding:4px 8px">Ver todas →</button>
+    </div>
     <div class="recent-list">
-      ${[...log].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(s=>{
+      ${[...log].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6).map(s=>{
         const valid=s.exercises.filter(e=>e.exId);
         const grps=[...new Set(valid.map(e=>{const ex=EXERCISES.find(x=>x.id===e.exId);return ex?GROUPS.find(g=>g.id===GROUP_MERGE[ex.category])?.label:null;}).filter(Boolean))];
         const sets=s.exercises.reduce((a,e)=>a+e.sets.length,0);
