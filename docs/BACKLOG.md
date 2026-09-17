@@ -31,4 +31,21 @@ Roadmap hacia paridad funcional con openGym, más ideas sueltas que todavía no 
 - [x] **Rutinas: autoguardado + fix del bug del 3er ejercicio + selección de día** — hecho (2026-09-15, ver `docs/superpowers/specs/2026-09-15-rutinas-autoguardado-design.md` y `docs/superpowers/plans/2026-09-15-rutinas-autoguardado.md`). Reemplaza el borrador `editRoutine` por autoguardado directo; saca la barra Cancelar/Guardar (lo que arregla el bug del 3er ejercicio); la tira de 7 días pasa a un solo tap que siempre abre el selector de reasignación. La revisión final encontró y arregló un bug crítico no anticipado en el diseño original: el guardado viejo le sacaba el `id` a cada ejercicio y solo se lo volvía a poner al abrir el editor — sin ese mecanismo, cualquier rutina previa a esta rama (o cargada de plantilla) quedaba imposible de editar en silencio.
 - [x] **Inicio + Stats/Historial** — hecho (2026-09-16, ver `docs/superpowers/specs/2026-09-15-inicio-stats-historial-design.md` y `docs/superpowers/plans/2026-09-15-inicio-stats-historial.md`). La pestaña Inicio reutiliza `view-log`/`showLog()` (no los renombra) para mostrar por defecto lo que mostraba Rutinas — tira semanal + botones Plantillas/+ Rutina + lista de rutinas — manteniendo el header de HIERRO y la ruedita de configuración; la pestaña "Rutinas" separada se elimina (bottom-nav queda en 4: Inicio, Empezar, Stats, Guía). El historial de sesiones se muda a un overlay nuevo ("Historial") accesible desde Stats — sección "Sesiones recientes" (últimas 6, solo lectura) + ícono en el header + botón "Ver todas →", siguiendo el patrón real de openGym. La revisión final encontró y arregló 2 bugs críticos que las tareas individuales no podían haber visto (aparecen solo al juntar las piezas): el overlay de Historial no scrolleaba más allá de las primeras sesiones, y quedaba pegado visualmente encima de la pantalla de entrenamiento al editar una sesión pasada — más un bug importante de Stats mostrando datos viejos después de borrar una sesión desde Historial.
 
-_Última actualización: 2026-09-16 (Inicio + Stats/Historial) — roadmap A–I completo + 2 de 3 ideas sueltas + rediseño Inicio/Rutinas/Stats completo._
+## Feedback de Raúl sobre flujo de días/rutinas (2026-09-17)
+
+Review recibida por PDF más feedback hablado adicional. Dividido en dos sub-proyectos:
+
+- [x] **Sub-proyecto 1 — Ajustes de UI** — hecho (2026-09-17, sin tocar el modelo de datos de rutinas):
+  - Fecha real bajo cada día de la tira semanal (semana actual solamente, sin navegación a otras semanas por ahora).
+  - Botón "atrás" global agrandado; se agrega manejo de `history`/`popstate` para que el botón físico o el gesto de atrás del teléfono cierre overlays/subvistas (Ajustes, editor de rutina) en vez de salir de la app.
+  - Ajustes se muda del header a la bottom-nav; nuevo orden: Inicio, Guía, Empezar, Stats, Ajustes.
+- [ ] **Sub-proyecto 2 — Rutinas independientes por día** — pendiente de diseño/implementación. Alcance acordado:
+  - Navegación libre entre días desde Inicio, entrando a ver la rutina individual de cada uno (PDF #1).
+  - Botón grande "Iniciar sesión" dentro de la vista de cada día; si no hay rutina cargada, preguntar si crear una rutina nueva o una sesión freestyle en vez de deshabilitar el botón (PDF #2 + feedback hablado).
+  - Cada día tiene su propia copia editable de la rutina (aunque compartan grupo muscular), en vez de una plantilla compartida por id (PDF #3, #4).
+  - Selector de día suma la opción "Crear rutina"/freestyle además de Descanso y rutinas existentes (feedback hablado).
+  - Al editar ejercicios/pesos o agregar/quitar ejercicios de un día y guardar, preguntar alcance: solo ese día o todos los días que usan esa misma rutina (PDF #5, refinado en el feedback hablado).
+  - Enfoque de datos acordado: al asignar una rutina a un día se crea una copia propia atada a ese día; la biblioteca de rutinas (`routines[]`) queda como plantillas/punto de partida para compartir e importar, no como fuente de verdad de lo que se entrena. "Aplicar a todos los días con esa rutina" propaga el cambio a las copias de esos días específicos, no a la plantilla.
+  - Descartado por ahora: navegar a semanas futuras/pasadas desde la tira semanal (se evaluará más adelante, y si se hace, sin permitir editar esas semanas).
+
+_Última actualización: 2026-09-17 (feedback de Raúl, sub-proyecto 1 de UI) — roadmap A–I completo + 2 de 3 ideas sueltas + rediseño Inicio/Rutinas/Stats completo + sub-proyecto 1 del feedback de Raúl completo, sub-proyecto 2 pendiente._
