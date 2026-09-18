@@ -323,6 +323,13 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
         </div>
       </div>
       <div class="field-group">
+        <div class="field-label">Progresión automática</div>
+        <div class="gd-prog-toggle">
+          <button type="button" class="gsg-btn" id="settings-autoprog-on" onclick="setAutoProgression(true)">Activada</button>
+          <button type="button" class="gsg-btn" id="settings-autoprog-off" onclick="setAutoProgression(false)">Desactivada</button>
+        </div>
+      </div>
+      <div class="field-group">
         <div class="field-label">Backup completo</div>
         <div class="backup-footer">
           <button class="btn-ghost" onclick="exportBackup()">Exportar backup</button>
@@ -524,6 +531,7 @@ const WEEK_KEY = 'hierro_week';
 const DAY_OVERRIDES_KEY = 'hierro_day_overrides';
 const REST_SEC_KEY = 'hierro_rest_sec';
 const EFFORT_SCALE_KEY = 'hierro_effort_scale';
+const AUTO_PROGRESSION_KEY = 'hierro_auto_progression';
 const LAST_BACKUP_KEY = 'hierro_last_backup';
 const DISMISSED_NOTICES_KEY = 'hierro_dismissed_notices';
 
@@ -660,6 +668,7 @@ let editingRoutineId = null;
 function currentRoutine(){ return routines.find(r=>r.id===editingRoutineId); }
 let restSec = 90;
 let effortScale = 'rpe';
+let autoProgressionEnabled = true;
 let activeWorkout = null;
 let workoutTimerInterval = null;
 
@@ -709,6 +718,7 @@ async function init() {
   dayOverrides = loadDayOverrides();
   restSec = loadRestSec();
   effortScale = loadEffortScale();
+  autoProgressionEnabled = loadAutoProgression();
   try { const r = await fetch('./es-names.json'); ES_NAMES_MAP = await r.json(); } catch(e){}
   try { const c=sessionStorage.getItem(EX_CACHE_KEY); if(c) EXERCISES=JSON.parse(c); } catch(e){}
   if (!EXERCISES.length) {
@@ -753,6 +763,8 @@ function showSettings(){
   document.getElementById('settings-rest-sec').value=restSec;
   document.getElementById('settings-effort-rpe').classList.toggle('active', effortScale==='rpe');
   document.getElementById('settings-effort-rir').classList.toggle('active', effortScale==='rir');
+  document.getElementById('settings-autoprog-on').classList.toggle('active', autoProgressionEnabled);
+  document.getElementById('settings-autoprog-off').classList.toggle('active', !autoProgressionEnabled);
   renderLastBackupLabel();
   showView('view-settings');
   setActiveNav('bnav-settings');
@@ -767,6 +779,14 @@ function renderLastBackupLabel(){
 function updateRestSec(val){const n=parseInt(val,10);restSec=Number.isFinite(n)&&n>=0?n:0;saveRestSec();}
 function loadEffortScale(){const v=localStorage.getItem(EFFORT_SCALE_KEY);return v==='rir'?'rir':'rpe';}
 function saveEffortScale(){localStorage.setItem(EFFORT_SCALE_KEY,effortScale);}
+function loadAutoProgression(){return localStorage.getItem(AUTO_PROGRESSION_KEY)!=='off';}
+function saveAutoProgression(){localStorage.setItem(AUTO_PROGRESSION_KEY, autoProgressionEnabled?'on':'off');}
+function setAutoProgression(on){
+  autoProgressionEnabled=on;
+  saveAutoProgression();
+  document.getElementById('settings-autoprog-on').classList.toggle('active', on);
+  document.getElementById('settings-autoprog-off').classList.toggle('active', !on);
+}
 function setEffortScale(scale){
   effortScale=scale;
   saveEffortScale();
