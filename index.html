@@ -1013,7 +1013,7 @@ function cancelBackupRestore(){
 function confirmBackupRestore(){
   const data=pendingBackupData; if(!data) return;
   const dayOverridesData = (data.hierro_day_overrides && typeof data.hierro_day_overrides==='object' && !Array.isArray(data.hierro_day_overrides)) ? data.hierro_day_overrides : {};
-  log=data.log; routines=data.hierro_routines; week=data.hierro_week; dayOverrides=dayOverridesData;
+  log=data.log; routines=(data.hierro_routines||[]).map(r=>({...r, exercises:(r.exercises||[]).map(normalizeRoutineExercise)})); week=data.hierro_week; dayOverrides=dayOverridesData;
   saveLog(); saveRoutines(); saveWeek(); saveDayOverrides();
   renderHistory(); renderPlanSemanal();
   toast(`Backup restaurado: ${log.length} ${log.length!==1?'sesiones':'sesión'}, ${routines.length} rutina${routines.length!==1?'s':''}`);
@@ -1143,7 +1143,7 @@ function suggestSetValue(exId, si, plannedReps){
   if(entryCardioDuration(e)) return null;
   const prevSet=e.sets[si];
   if(!prevSet) return null;
-  const base=parseFloat(plannedReps);
+  const base=parseFloat(plannedReps)||parseFloat(prevSet.reps);
   if(!base) return null;
   if(prevSet.weight==='' || prevSet.weight==null || prevSet.reps==='' || prevSet.reps==null) return null;
   const top=base+4;
@@ -1670,7 +1670,7 @@ function otherDaysUsingRoutine(routineId, excludeIso){
 function forkRoutine(routineId){
   const orig=routines.find(r=>r.id===routineId);
   if(!orig) return null;
-  const clone={id:uid(), name:orig.name, exercises:orig.exercises.map(e=>({...e,id:uid()}))};
+  const clone={id:uid(), name:orig.name, exercises:orig.exercises.map(e=>({...e,id:uid(),sets:e.sets.map(s=>({...s}))}))};
   routines.push(clone);
   saveRoutines();
   return clone.id;
