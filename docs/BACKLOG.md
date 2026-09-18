@@ -48,9 +48,8 @@ Review recibida por PDF más feedback hablado adicional. Dividido en dos sub-pro
   - Sumado durante el brainstorming: toggles de días de la semana ("Días asignados") dentro del propio editor de rutina, para asignar la misma rutina a otros días sin salir del editor.
   - Descartado por ahora: navegar a semanas futuras/pasadas desde la tira semanal (se evaluará más adelante, y si se hace, sin permitir editar esas semanas).
   - Verificación final end-to-end (los 10 puntos del testing checklist de la spec, incluyendo fork "solo este día"/"todos esos días", freestyle desde día vacío y desde el selector, y regresión de back-navigation) pasó sin encontrar bugs nuevos.
-- [ ] **Sub-proyecto 3 — Editor de ejercicios de rutina** — feedback recibido, todavía sin diseñar:
-  - Falta un botón "Terminar"/"Guardar" explícito al editar una rutina (hoy solo se sale con la flecha atrás).
-  - Renombrar "set" → "serie" en toda la app (cambio de terminología global).
-  - El editor de rutina hoy solo permite definir "cantidad de series + reps objetivo" (un número + un target), sin peso. Pasar a un modelo de series individuales editables (como ya existe en el entrenamiento en vivo/freestyle), cada una con su propio peso y reps, para poder planificar progresión por serie desde la rutina misma — no solo cargarla en vivo.
+- [x] **Sub-proyecto 3 — Editor de ejercicios de rutina** — hecho (2026-09-18, ver `docs/superpowers/specs/2026-09-17-series-con-peso-planificado-design.md` y `docs/superpowers/plans/2026-09-17-series-con-peso-planificado.md`):
+  - Botón "Terminar"/"Guardar" explícito al editar una rutina, y renombrado "set" → "serie" en toda la app (hecho como parte de la rama previa, ver commit `289729e`).
+  - El editor de rutina pasó de "cantidad de series + reps objetivo" a un modelo de series individuales editables, cada una con su propio peso y reps, con toggles "Mismo peso"/"Mismas reps para todas las series"; un toggle "Progresión automática" en Ajustes (default activado) permite desactivar la progresión automática por serie y dejar que el plan de la rutina mande siempre. Verificación final end-to-end (los 10 puntos del testing checklist de la spec) pasó sin encontrar bugs nuevos.
 
-_Última actualización: 2026-09-17 (feedback de Raúl, sub-proyectos 1 y 2) — roadmap A–I completo + 2 de 3 ideas sueltas + rediseño Inicio/Rutinas/Stats completo + sub-proyectos 1 y 2 del feedback de Raúl completos, sub-proyecto 3 pendiente._
+_Última actualización: 2026-09-18 (series con peso planificado) — roadmap A–I completo + 2 de 3 ideas sueltas + rediseño Inicio/Rutinas/Stats completo + los 3 sub-proyectos del feedback de Raúl completos._
