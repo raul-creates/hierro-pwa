@@ -237,6 +237,8 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 .week-day.today{background:#FFD200}
 .week-day.today .wd-letter,.week-day.today .wd-date,.week-day.today .wd-name{color:#0F1117}
 .wd-ovr{color:#FF8A00}
+.rdt-btn{flex:1;text-align:center;border-radius:8px;padding:9px 2px;background:#1A1D2E;border:none;font-family:inherit;font-size:12px;font-weight:700;color:#9195A3;cursor:pointer}
+.rdt-btn.on{background:#FFD200;color:#0F1117}
 .plan-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .plan-buttons button{background:#1A1D2E;border:1px solid #252840;border-radius:8px;color:#9195A3;padding:9px 4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
@@ -341,6 +343,10 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
       <div class="field-group">
         <div class="field-label">Nombre</div>
         <input type="text" id="routine-name" placeholder="Ej. Push, Pull, Piernas" onchange="updateRoutineName(this.value)" style="width:100%;background:#1A1D2E;border:1px solid #252840;border-radius:7px;color:#fff;padding:8px 9px;font-size:15px;outline:none">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Días asignados</div>
+        <div class="week-strip" id="routine-day-toggles"></div>
       </div>
       <div id="routine-exercises-container"></div>
       <button class="btn-add-ex" onclick="addRoutineExercise()">+ Ejercicio</button>
@@ -1570,6 +1576,7 @@ function createRoutineAssignedToDay(scope){
     week[String(wd)]=newId; saveWeek();
     if(Object.prototype.hasOwnProperty.call(dayOverrides,dayOverlayIso)){ delete dayOverrides[dayOverlayIso]; saveDayOverrides(); }
   }
+  renderRoutineDayToggles();
 }
 function startDaySession(){
   const effId=effectiveRoutineId(dayOverlayIso);
@@ -1694,6 +1701,7 @@ function newRoutine(){
   document.getElementById('routine-editor-title').textContent='Nueva rutina';
   document.getElementById('routine-name').value='';
   renderRoutineExercises();
+  renderRoutineDayToggles();
   showView('view-routine-edit');
   return r.id;
 }
@@ -1706,6 +1714,7 @@ function editRoutineFn(id){
   document.getElementById('routine-editor-title').textContent='Editar rutina';
   document.getElementById('routine-name').value=r.name;
   renderRoutineExercises();
+  renderRoutineDayToggles();
   showView('view-routine-edit');
 }
 function cancelRoutineEdit(){
@@ -1764,6 +1773,21 @@ function updateRoutinePerSide(id,checked){const r=currentRoutine();if(!r)return;
 function updateRoutineLinkedToNext(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.linkedToNext=checked;saveRoutines();}
 function updateRoutineCardioDuration(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.cardioDuration=checked;saveRoutines();}
 function updateRoutineName(val){const r=currentRoutine();if(!r)return;r.name=val.trim()||'Rutina';saveRoutines();document.getElementById('routine-name').value=r.name;}
+function renderRoutineDayToggles(){
+  const el=document.getElementById('routine-day-toggles');
+  if(!el)return;
+  const r=currentRoutine(); if(!r)return;
+  el.innerHTML=WEEK_LAYOUT.map(wd=>
+    `<button type="button" class="rdt-btn${week[String(wd)]===r.id?' on':''}" onclick="toggleRoutineDay(${wd})">${WEEKDAY_LETTERS[wd]}</button>`
+  ).join('');
+}
+function toggleRoutineDay(wd){
+  const r=currentRoutine(); if(!r)return;
+  week[String(wd)] = (week[String(wd)]===r.id) ? null : r.id;
+  saveWeek();
+  renderRoutineDayToggles();
+  renderPlanSemanal();
+}
 function addRoutineExercise(){const r=currentRoutine();if(!r)return;r.exercises.push(emptyRoutineEx());saveRoutines();renderRoutineExercises();setTimeout(()=>{const b=document.querySelectorAll('#routine-exercises-container .ex-block');if(b.length)b[b.length-1].scrollIntoView({behavior:'smooth'});},50);}
 function removeRoutineExercise(id){
   const r=currentRoutine(); if(!r)return;
