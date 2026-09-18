@@ -1585,12 +1585,7 @@ function startDaySession(){
   if(effId==='freestyle'){ startFreestyleSession(); return; }
   if(effId && effId!=='rest'){
     const routine=routines.find(r=>r.id===effId);
-    if(routine){
-      if(activeWorkout && !confirm('Tenés un entrenamiento en curso. ¿Descartarlo y arrancar otro?')) return;
-      closeDayOverlay();
-      newSessionFromRoutine(routine);
-      return;
-    }
+    if(routine){ closeDayOverlay(); newSessionFromRoutine(routine); return; }
   }
   openDayStartChooser();
 }
