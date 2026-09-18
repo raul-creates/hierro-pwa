@@ -338,6 +338,9 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
     <div class="header">
       <button class="btn-back" onclick="cancelRoutineEdit()">←</button>
       <span class="header-title" id="routine-editor-title">Nueva rutina</span>
+      <div class="header-actions">
+        <button class="wk-icon-btn wk-finish" onclick="cancelRoutineEdit()" aria-label="Terminar">✓</button>
+      </div>
     </div>
     <div class="editor-content">
       <div class="field-group">
@@ -1756,7 +1759,7 @@ function buildRoutineExBlock(ex, hasNext, totalCount){
       </div>
       <button class="btn-remove-ex" onclick="removeRoutineExercise('${ex.id}')" ${!canRm?'disabled style="color:#1E2130"':''}>✕</button>
     </div>
-    <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>Sets</span><span>Reps objetivo</span><span class="col-x"></span></div>
+    <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>Series</span><span>Reps objetivo</span><span class="col-x"></span></div>
     <div class="set-row">
       <span class="set-dot">●</span>
       <div class="set-iw"><input type="number" inputmode="numeric" placeholder="3" value="${ex.sets||''}" onchange="updateRoutineField('${ex.id}','sets',this.value)"></div>
