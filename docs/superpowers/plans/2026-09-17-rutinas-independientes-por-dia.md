@@ -436,9 +436,9 @@ let dayOverlayEditRoutineId=null;
 
 - [ ] **Step 3: Route "Editar ejercicios" through the new entry point**
 
-Find (in `index.html`, inside `renderDayOverlayDetail`, produced by Task 2 Step 1 — this exact string is unique in the file):
+Find (in `index.html`, inside `renderDayOverlayDetail` — this exact string is unique in the file. Note: Task 2's implementation added `closeDayOverlay();` before the `editRoutineFn` call, a necessary fix over the plan's original text, which would have left the day-overlay stacked on top of the routine editor. `editRoutineFromDay`, defined in this task's Step 4, already calls `closeDayOverlay()` itself in its direct-edit branch, so the replacement below drops the inline `closeDayOverlay();` rather than keeping a redundant one):
 ```js
-        <button class="btn-ghost" style="width:100%;padding:11px 0" onclick="editRoutineFn('${routine.id}')">Editar ejercicios</button>
+        <button class="btn-ghost" style="width:100%;padding:11px 0" onclick="closeDayOverlay();editRoutineFn('${routine.id}')">Editar ejercicios</button>
 ```
 
 Replace with:
