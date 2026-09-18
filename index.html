@@ -1457,9 +1457,11 @@ function renderPlanSemanal(){
 
 let dayOverlayIso='';
 let dayOverlayChoice=null;
+let dayOverlayMode='detail';
 function openDayOverlay(iso){
   dayOverlayIso=iso;
   dayOverlayChoice=null;
+  dayOverlayMode='detail';
   renderDayOverlay();
   document.getElementById('day-overlay').classList.add('active');
 }
@@ -1467,12 +1469,62 @@ function closeDayOverlay(){
   document.getElementById('day-overlay').classList.remove('active');
 }
 function renderDayOverlay(){
+  if(dayOverlayMode==='reassign') renderDayOverlayReassign();
+  else if(dayOverlayMode==='start-chooser') renderDayOverlayStartChooser();
+  else renderDayOverlayDetail();
+}
+function renderDayOverlayDetail(){
+  const body=document.getElementById('day-overlay-body');
+  const wd=new Date(dayOverlayIso+'T12:00:00').getDay();
+  const dayName=WEEKDAY_NAMES[wd];
+  const dayNameCap=dayName.charAt(0).toUpperCase()+dayName.slice(1);
+  const dateLabel=`${dayOverlayIso.slice(8,10)}/${dayOverlayIso.slice(5,7)}`;
+  document.getElementById('day-overlay-title').textContent=`${dayNameCap} ${dateLabel}`;
+  const effId=effectiveRoutineId(dayOverlayIso);
+  const routine=(effId && effId!=='rest' && effId!=='freestyle') ? routines.find(r=>r.id===effId) : null;
+  let html='';
+  if(effId==='rest'){
+    html=`<div style="padding:24px 14px;text-align:center;color:#9195A3">Día de descanso</div>
+      <div style="padding:0 14px 14px"><button class="btn-ghost" style="width:100%;padding:11px 0" onclick="showDayReassign()">Cambiar</button></div>`;
+  } else if(effId==='freestyle'){
+    html=`<div style="padding:24px 14px;text-align:center;color:#9195A3">Sesión libre, sin rutina fija</div>
+      <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px">
+        <button class="btn-primary" style="width:100%;padding:12px 0" onclick="startDaySession()">Iniciar sesión</button>
+        <button class="btn-ghost" style="width:100%;padding:11px 0" onclick="showDayReassign()">Cambiar</button>
+      </div>`;
+  } else if(routine){
+    const exList=routine.exercises.map(re=>{
+      const exData=EXERCISES.find(e=>e.id===re.exId);
+      return `<div style="padding:7px 0;border-bottom:1px solid #1E2130;color:#fff;font-size:14px">${exData?esName(exData):'—'}</div>`;
+    }).join('');
+    html=`<div style="padding:10px 14px 0;color:#FFD200;font-weight:700;font-size:16px">${routine.name}</div>
+      <div style="padding:6px 14px 4px">${exList}</div>
+      <div style="padding:10px 14px 14px;display:flex;flex-direction:column;gap:8px">
+        <button class="btn-primary" style="width:100%;padding:12px 0" onclick="startDaySession()">Iniciar sesión</button>
+        <button class="btn-ghost" style="width:100%;padding:11px 0" onclick="closeDayOverlay();editRoutineFn('${routine.id}')">Editar ejercicios</button>
+        <button class="btn-ghost" style="width:100%;padding:11px 0" onclick="showDayReassign()">Cambiar rutina del día</button>
+      </div>`;
+  } else {
+    html=`<div style="padding:24px 14px;text-align:center;color:#9195A3">Sin rutina asignada</div>
+      <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px">
+        <button class="btn-primary" style="width:100%;padding:12px 0" onclick="startDaySession()">Iniciar sesión</button>
+        <button class="btn-ghost" style="width:100%;padding:11px 0" onclick="showDayReassign()">Asignar rutina</button>
+      </div>`;
+  }
+  body.innerHTML=html;
+}
+function showDayReassign(){
+  dayOverlayMode='reassign';
+  dayOverlayChoice=null;
+  renderDayOverlay();
+}
+function renderDayOverlayReassign(){
   const body=document.getElementById('day-overlay-body');
   const wd=new Date(dayOverlayIso+'T12:00:00').getDay();
   const dayName=WEEKDAY_NAMES[wd];
   document.getElementById('day-overlay-title').textContent = dayName.charAt(0).toUpperCase()+dayName.slice(1);
   let html=`<div style="padding:14px 14px 4px;color:#9195A3;font-size:14px;line-height:1.5">¿Enfermo, te salteaste un día o querés algo distinto? Elegí qué entrenar en su lugar.</div>`;
-  const items=[{id:'rest',label:'Descanso'},...routines.map(r=>({id:r.id,label:r.name}))];
+  const items=[{id:'rest',label:'Descanso'},{id:'freestyle',label:'Freestyle (sin rutina)'},{id:'__new__',label:'Crear rutina'},...routines.map(r=>({id:r.id,label:r.name}))];
   html+=`<div style="padding:10px 14px">`+items.map(it=>
     `<div style="padding:9px 0;cursor:pointer;font-weight:${dayOverlayChoice===it.id?'700':'400'};color:${dayOverlayChoice===it.id?'#FFD200':'#fff'}" onclick="pickDayOverlayChoice('${it.id}')">${it.label}</div>`
   ).join('')+`</div>`;
@@ -1486,6 +1538,11 @@ function renderDayOverlay(){
 }
 function pickDayOverlayChoice(id){ dayOverlayChoice=id; renderDayOverlay(); }
 function applyDayOverride(scope){
+  if(dayOverlayChoice==='__new__'){
+    closeDayOverlay();
+    createRoutineAssignedToDay(scope);
+    return;
+  }
   if(scope==='today'){
     dayOverrides[dayOverlayIso]=dayOverlayChoice;
     saveDayOverrides();
@@ -1498,9 +1555,51 @@ function applyDayOverride(scope){
       saveDayOverrides();
     }
   }
-  closeDayOverlay();
+  dayOverlayMode='detail';
+  renderDayOverlay();
   renderPlanSemanal();
   toast('Día actualizado');
+}
+function createRoutineAssignedToDay(scope){
+  const newId=newRoutine();
+  if(scope==='today'){ dayOverrides[dayOverlayIso]=newId; saveDayOverrides(); }
+  else {
+    const wd=new Date(dayOverlayIso+'T12:00:00').getDay();
+    week[String(wd)]=newId; saveWeek();
+    if(Object.prototype.hasOwnProperty.call(dayOverrides,dayOverlayIso)){ delete dayOverrides[dayOverlayIso]; saveDayOverrides(); }
+  }
+}
+function startDaySession(){
+  const effId=effectiveRoutineId(dayOverlayIso);
+  if(effId==='freestyle'){ startFreestyleSession(); return; }
+  if(effId && effId!=='rest'){
+    const routine=routines.find(r=>r.id===effId);
+    if(routine){ closeDayOverlay(); newSessionFromRoutine(routine); return; }
+  }
+  openDayStartChooser();
+}
+function openDayStartChooser(){
+  dayOverlayMode='start-chooser';
+  renderDayOverlay();
+}
+function renderDayOverlayStartChooser(){
+  const body=document.getElementById('day-overlay-body');
+  document.getElementById('day-overlay-title').textContent='¿Qué querés hacer?';
+  body.innerHTML=`<div style="padding:14px;display:flex;flex-direction:column;gap:8px">
+    <button class="btn-primary" style="padding:12px 0" onclick="createRoutineFromStartChooser()">Crear rutina</button>
+    <button class="btn-ghost" style="padding:11px 0" onclick="startFreestyleSession()">Freestyle</button>
+  </div>`;
+}
+function createRoutineFromStartChooser(){
+  closeDayOverlay();
+  createRoutineAssignedToDay('always');
+}
+function startFreestyleSession(){
+  if(activeWorkout && !confirm('Tenés un entrenamiento en curso. ¿Descartarlo y arrancar otro?')) return;
+  if(activeWorkout){ stopWorkoutClock(); skipRestTimer(); }
+  closeDayOverlay();
+  activeWorkout = buildActiveWorkout(null, null);
+  enterWorkoutScreen();
 }
 
 
@@ -1538,6 +1637,7 @@ function newRoutine(){
   document.getElementById('routine-name').value='';
   renderRoutineExercises();
   showView('view-routine-edit');
+  return r.id;
 }
 function editRoutineFn(id){
   const r=routines.find(x=>x.id===id); if(!r)return;
