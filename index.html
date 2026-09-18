@@ -1117,12 +1117,22 @@ function buildActiveWorkout(routine, editingSession){
       }))
     };
   }
-  const entries = routine ? routine.exercises.filter(re=>re.exId).map(re=>({
-    id: uid(), cat: re.cat, exId: re.exId, targetReps: (re.sets[0]&&re.sets[0].reps)||'', effort: '', perSide: !!re.perSide, linkedToNext: !!re.linkedToNext,
-    cardioDuration: entryCardioDuration(re),
-    sets: re.sets.map(s=>({weight: s.weight||'', reps: s.reps||'', done:false}))
-  })) : [];
-  entries.forEach(applySuggestedSets);
+  const entries = routine ? routine.exercises.filter(re=>re.exId).map(re=>{
+    const lastSession=mostRecentSessionWith(re.exId);
+    const lastEntry=lastSession?lastSession.exercises.find(x=>x.exId===re.exId):null;
+    const sets=re.sets.map((s,si)=>{
+      const prev=lastEntry&&lastEntry.sets[si];
+      const hasPrev=prev&&prev.weight!==''&&prev.weight!=null&&prev.reps!==''&&prev.reps!=null;
+      return {weight: hasPrev?prev.weight:(s.weight||''), reps: hasPrev?prev.reps:(s.reps||''), done:false};
+    });
+    const suggestions=autoProgressionEnabled?re.sets.map((s,si)=>suggestSetValue(re.exId, si, s.reps)):[];
+    const suggestionText=suggestions.some(x=>x)?'Probá: '+suggestions.map(x=>x?`${x.weight}kg×${x.reps}`:'—').join(' '):'';
+    return {
+      id: uid(), cat: re.cat, exId: re.exId, targetReps: (re.sets[0]&&re.sets[0].reps)||'', effort: '', perSide: !!re.perSide, linkedToNext: !!re.linkedToNext,
+      cardioDuration: entryCardioDuration(re),
+      suggestionText, sets
+    };
+  }) : [];
   return {
     id: uid(), date: todayISO(), routineId: routine?routine.id:null, routineName: routine?routine.name:null,
     start: Date.now(), editingSessionId: null, cur: 0, entries
@@ -1148,7 +1158,7 @@ function startWorkout(){
 }
 function openStartChooser(){
   const items=[{label:'Freestyle (sin rutina)', accent:true, onclick:'pickStart(null)'}]
-    .concat(routines.map(r=>({label:r.name, onclick:`pickStart('${r.id}')`})));
+    .concat(routines.filter(r=>!r.hidden).map(r=>({label:r.name, onclick:`pickStart('${r.id}')`})));
   openListOverlay('Empezar', items);
 }
 function pickStart(routineId){
@@ -1197,14 +1207,16 @@ function suggestSetValue(exId, si, plannedReps){
   if(reps>=top) return {weight:Math.round((weight+2.5)*100)/100, reps:base};
   return {weight, reps:Math.min(reps+1, top)};
 }
-function applySuggestedSets(entry){
+function prefillFromLastSession(entry){
   if(!entry || !entry.exId) return;
   if(entry.cardioDuration) return;
-  if(!autoProgressionEnabled) return;
-  entry.sets.forEach((s,si)=>{
-    const sug=suggestSetValue(entry.exId, si, s.reps);
-    if(sug){ s.weight=sug.weight; s.reps=sug.reps; }
-  });
+  const s=mostRecentSessionWith(entry.exId);
+  if(!s) return;
+  const e=s.exercises.find(x=>x.exId===entry.exId);
+  const prev=e.sets[0];
+  if(!prev) return;
+  if(prev.weight!==''&&prev.weight!=null) entry.sets[0].weight=prev.weight;
+  if(prev.reps!==''&&prev.reps!=null) entry.sets[0].reps=prev.reps;
 }
 function buildWorkoutSetRow(entry, si, isBodyweight, isCardio){
   const s=entry.sets[si];
@@ -1307,7 +1319,7 @@ function renderWorkoutScreen(){
         ${A.cur<A.entries.length-1?`<span class="mtag mtag-toggle${entry.linkedToNext?' active':''}" onclick="toggleLinkedToNext()">Superset con el siguiente</span>`:''}
         ${showCardioToggle(ex)||isCardio?`<span class="mtag mtag-toggle${isCardio?' active':''}" onclick="toggleCardioDuration()">Duración</span>`:''}
       </div>
-      <div class="wk-ex-last">${lastTimeSummary(entry.exId)}</div>
+      <div class="wk-ex-last">${entry.suggestionText || lastTimeSummary(entry.exId)}</div>
       <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span>${isCardio?'':'<span>'+(isBodyweight?'Peso extra':'Peso')+'</span>'}<span>${isCardio?'Duración (min)':(entry.perSide?'Reps (c/lado)':'Reps')}</span><span class="col-x"></span><span style="width:24px;flex-shrink:0"></span></div>
       <div id="wk-sets">${entry.sets.map((s,si)=>buildWorkoutSetRow(entry,si,isBodyweight,isCardio)).join('')}</div>
       <button class="btn-add-set" onclick="addWorkoutSet()">+ Serie</button>
@@ -1502,7 +1514,7 @@ function isoOffset(daysFromToday){
   d.setDate(d.getDate()+daysFromToday);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function emptyRoutineEx(){return{id:uid(),cat:'',exId:'',sets:[{weight:'',reps:''}],perSide:false,linkedToNext:false,cardioDuration:false,sameWeightForAllSets:false,sameRepsForAllSets:false};}
+function emptyRoutineEx(){return{id:uid(),cat:'',exId:'',sets:[{weight:'',reps:''}],perSide:false,linkedToNext:false,cardioDuration:false};}
 
 function renderPlanSemanal(){
   const el=document.getElementById('plan-semanal'); if(!el) return;
@@ -1613,7 +1625,7 @@ function renderDayOverlayReassign(){
   const dayName=WEEKDAY_NAMES[wd];
   document.getElementById('day-overlay-title').textContent = dayName.charAt(0).toUpperCase()+dayName.slice(1);
   let html=`<div style="padding:14px 14px 4px;color:#9195A3;font-size:14px;line-height:1.5">¿Enfermo, te salteaste un día o querés algo distinto? Elegí qué entrenar en su lugar.</div>`;
-  const items=[{id:'rest',label:'Descanso'},{id:'freestyle',label:'Freestyle (sin rutina)'},{id:'__new__',label:'Crear rutina'},...routines.map(r=>({id:r.id,label:r.name}))];
+  const items=[{id:'rest',label:'Descanso'},{id:'freestyle',label:'Freestyle (sin rutina)'},{id:'__new__',label:'Crear rutina'},...routines.filter(r=>!r.hidden).map(r=>({id:r.id,label:r.name}))];
   html+=`<div style="padding:10px 14px">`+items.map(it=>
     `<div style="padding:9px 0;cursor:pointer;font-weight:${dayOverlayChoice===it.id?'700':'400'};color:${dayOverlayChoice===it.id?'#FFD200':'#fff'}" onclick="pickDayOverlayChoice('${it.id}')">${it.label}</div>`
   ).join('')+`</div>`;
@@ -1714,7 +1726,7 @@ function otherDaysUsingRoutine(routineId, excludeIso){
 function forkRoutine(routineId){
   const orig=routines.find(r=>r.id===routineId);
   if(!orig) return null;
-  const clone={id:uid(), name:orig.name, exercises:orig.exercises.map(e=>({...e,id:uid(),sets:e.sets.map(s=>({...s}))}))};
+  const clone={id:uid(), name:orig.name, hidden:true, exercises:orig.exercises.map(e=>({...e,id:uid(),sets:e.sets.map(s=>({...s}))}))};
   routines.push(clone);
   saveRoutines();
   return clone.id;
@@ -1762,10 +1774,11 @@ function confirmEditScope(scope){
 let routinePickMode = null;
 function renderRoutinesList(){
   const el=document.getElementById('routines-list');
-  if(!routines.length){ el.innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin rutinas guardadas</h3><p>Creá una con "+ Rutina"</p></div>`; return; }
+  const visible=routines.filter(r=>!r.hidden);
+  if(!visible.length){ el.innerHTML=`<div class="empty-state"><div class="icon">📋</div><h3>Sin rutinas guardadas</h3><p>Creá una con "+ Rutina"</p></div>`; return; }
   const hint=routinePickMode==='export'?`<div class="field-label" style="margin-bottom:8px">Elegí cuál exportar</div>`
     :routinePickMode==='share'?`<div class="field-label" style="margin-bottom:8px">Elegí cuál compartir</div>`:'';
-  el.innerHTML=hint+routines.map(r=>{
+  el.innerHTML=hint+visible.map(r=>{
     const tapFn=routinePickMode==='export'?`exportRoutine('${r.id}')`
       :routinePickMode==='share'?`shareRoutine('${r.id}')`
       :`newSessionFromRoutine(routines.find(x=>x.id==='${r.id}'))`;
@@ -1824,37 +1837,20 @@ function buildRoutineExBlock(ex, hasNext, totalCount){
   const exData=EXERCISES.find(e=>e.id===ex.exId);
   const groupOpts=GROUPS.map(g=>`<option value="${g.id}"${ex.cat===g.id?' selected':''}>${g.label}</option>`).join('');
   const isBodyweight = exData?.equipment==='body weight';
-  const sameW=!!ex.sameWeightForAllSets, sameR=!!ex.sameRepsForAllSets;
-  const sharedWeight=(ex.sets[0]&&ex.sets[0].weight)||'', sharedReps=(ex.sets[0]&&ex.sets[0].reps)||'';
-  const sharedRowHtml=(sameW||sameR)?`<div class="set-row">
-      <span class="set-dot">◆</span>
-      ${sameW?`<div class="set-iw stp-wrap">
-        <button type="button" class="stp-btn" onclick="bumpRoutineSameWeight('${ex.id}',-2.5)">−</button>
-        <input type="number" inputmode="decimal" placeholder="${isBodyweight?'Corporal':'0'}" value="${sharedWeight}" onchange="updateRoutineSameWeight('${ex.id}',this.value)">
-        <button type="button" class="stp-btn" onclick="bumpRoutineSameWeight('${ex.id}',2.5)">+</button>
-      </div>`:'<span class="set-iw"></span>'}
-      ${sameR?`<div class="set-iw stp-wrap">
-        <button type="button" class="stp-btn" onclick="bumpRoutineSameReps('${ex.id}',-1)">−</button>
-        <input type="number" inputmode="numeric" placeholder="0" value="${sharedReps}" onchange="updateRoutineSameReps('${ex.id}',this.value)">
-        <button type="button" class="stp-btn" onclick="bumpRoutineSameReps('${ex.id}',1)">+</button>
-      </div>`:'<span class="set-iw"></span>'}
-      <span class="col-x"></span>
-    </div>`:'';
   const rowsHtml=ex.sets.map((s,si)=>{
     const canRmSet=ex.sets.length>1;
-    const weightCell=sameW?'<span class="set-iw"></span>':`<div class="set-iw stp-wrap">
+    return `<div class="set-row">
+      <span class="set-dot">●</span>
+      <div class="set-iw stp-wrap">
         <button type="button" class="stp-btn" onclick="bumpRoutineSet('${ex.id}',${si},'weight',-2.5)">−</button>
         <input type="number" inputmode="decimal" placeholder="${isBodyweight?'Corporal':'0'}" value="${s.weight}" onchange="updateRoutineSetField('${ex.id}',${si},'weight',this.value)">
         <button type="button" class="stp-btn" onclick="bumpRoutineSet('${ex.id}',${si},'weight',2.5)">+</button>
-      </div>`;
-    const repsCell=sameR?'<span class="set-iw"></span>':`<div class="set-iw stp-wrap">
+      </div>
+      <div class="set-iw stp-wrap">
         <button type="button" class="stp-btn" onclick="bumpRoutineSet('${ex.id}',${si},'reps',-1)">−</button>
         <input type="number" inputmode="numeric" placeholder="0" value="${s.reps}" onchange="updateRoutineSetField('${ex.id}',${si},'reps',this.value)">
         <button type="button" class="stp-btn" onclick="bumpRoutineSet('${ex.id}',${si},'reps',1)">+</button>
-      </div>`;
-    return `<div class="set-row">
-      <span class="set-dot">●</span>
-      ${weightCell}${repsCell}
+      </div>
       <button class="btn-rm-set" onclick="removeRoutineSet('${ex.id}',${si})" ${!canRmSet?'disabled style="opacity:0.2"':''}>✕</button>
     </div>`;
   }).join('');
@@ -1870,18 +1866,9 @@ function buildRoutineExBlock(ex, hasNext, totalCount){
       </div>
       <button class="btn-remove-ex" onclick="removeRoutineExercise('${ex.id}')" ${!canRm?'disabled style="color:#1E2130"':''}>✕</button>
     </div>
-    <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>${sameW?'':'Peso'}</span><span>${sameR?'':'Reps'}</span><span class="col-x"></span></div>
-    ${sharedRowHtml}
+    <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>Peso</span><span>Reps</span><span class="col-x"></span></div>
     ${rowsHtml}
     <button type="button" class="btn-add-set" onclick="addRoutineSet('${ex.id}')">+ Serie</button>
-    <label class="effort-row" style="cursor:pointer">
-      <span class="field-label" style="margin:0">Mismo peso para todas las series</span>
-      <input type="checkbox" ${sameW?'checked':''} onchange="toggleRoutineSameWeight('${ex.id}', this.checked)">
-    </label>
-    <label class="effort-row" style="cursor:pointer">
-      <span class="field-label" style="margin:0">Mismas reps para todas las series</span>
-      <input type="checkbox" ${sameR?'checked':''} onchange="toggleRoutineSameReps('${ex.id}', this.checked)">
-    </label>
     <label class="effort-row" style="cursor:pointer">
       <span class="field-label" style="margin:0">Por lado</span>
       <input type="checkbox" ${ex.perSide?'checked':''} onchange="updateRoutinePerSide('${ex.id}', this.checked)">
@@ -1903,12 +1890,6 @@ function updateRoutineSetField(id,si,field,val){const r=currentRoutine();if(!r)r
 function bumpRoutineSet(id,si,field,delta){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;const s=ex.sets[si];if(!s)return;const cur=parseFloat(s[field])||0;s[field]=Math.max(0, Math.round((cur+delta)*100)/100);saveRoutines();renderRoutineExercises();}
 function addRoutineSet(id){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;const last=ex.sets[ex.sets.length-1];ex.sets.push({weight:last?last.weight:'', reps:last?last.reps:''});saveRoutines();renderRoutineExercises();}
 function removeRoutineSet(id,si){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;if(ex.sets.length<=1)return;if(!confirm('¿Eliminar esta serie?'))return;ex.sets.splice(si,1);saveRoutines();renderRoutineExercises();}
-function toggleRoutineSameWeight(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.sameWeightForAllSets=checked;if(checked){const w=(ex.sets[0]&&ex.sets[0].weight)||'';ex.sets.forEach(s=>s.weight=w);}saveRoutines();renderRoutineExercises();}
-function toggleRoutineSameReps(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.sameRepsForAllSets=checked;if(checked){const rp=(ex.sets[0]&&ex.sets[0].reps)||'';ex.sets.forEach(s=>s.reps=rp);}saveRoutines();renderRoutineExercises();}
-function updateRoutineSameWeight(id,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.sets.forEach(s=>s.weight=val);saveRoutines();}
-function updateRoutineSameReps(id,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.sets.forEach(s=>s.reps=val);saveRoutines();}
-function bumpRoutineSameWeight(id,delta){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;const cur=parseFloat(ex.sets[0]&&ex.sets[0].weight)||0;const next=Math.max(0, Math.round((cur+delta)*100)/100);ex.sets.forEach(s=>s.weight=next);saveRoutines();renderRoutineExercises();}
-function bumpRoutineSameReps(id,delta){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;const cur=parseFloat(ex.sets[0]&&ex.sets[0].reps)||0;const next=Math.max(0, Math.round((cur+delta)*100)/100);ex.sets.forEach(s=>s.reps=next);saveRoutines();renderRoutineExercises();}
 function updateRoutinePerSide(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.perSide=checked;saveRoutines();}
 function updateRoutineLinkedToNext(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.linkedToNext=checked;saveRoutines();}
 function updateRoutineCardioDuration(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.cardioDuration=checked;saveRoutines();}
@@ -2149,7 +2130,7 @@ function selectPickerExercise(exId){
   if(pickerMode==='routine'){ updateRoutineExId(pickerExBlockId, exId); renderRoutineExercises(); }
   else {
     const entry=activeWorkout.entries.find(e=>e.id===pickerExBlockId);
-    if(entry){ entry.exId=exId; entry.cardioDuration=defaultCardioDuration(EXERCISES.find(x=>x.id===exId)); applySuggestedSets(entry); }
+    if(entry){ entry.exId=exId; entry.cardioDuration=defaultCardioDuration(EXERCISES.find(x=>x.id===exId)); prefillFromLastSession(entry); }
     renderWorkoutScreen();
   }
   closePicker();
@@ -2275,7 +2256,7 @@ function addToToday(){
     let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
     if(idx<0){
       const entry={id:uid(), cat, exId:ex.id, targetReps:'', effort:'', perSide:false, linkedToNext:false, cardioDuration:defaultCardioDuration(ex), sets:[{weight:'',reps:'',done:false}]};
-      applySuggestedSets(entry);
+      prefillFromLastSession(entry);
       activeWorkout.entries.push(entry);
       idx = activeWorkout.entries.length-1;
     }
@@ -2292,7 +2273,7 @@ function addToToday(){
   let idx = activeWorkout.entries.findIndex(e=>e.exId===ex.id);
   if(idx<0){
     const entry={id:uid(), cat, exId:ex.id, targetReps:'', effort:'', perSide:false, linkedToNext:false, cardioDuration:defaultCardioDuration(ex), sets:[{weight:'',reps:'',done:false}]};
-    applySuggestedSets(entry);
+    prefillFromLastSession(entry);
     activeWorkout.entries.push(entry);
     idx = activeWorkout.entries.length-1;
   }
