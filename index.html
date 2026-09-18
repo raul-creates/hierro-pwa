@@ -1136,29 +1136,31 @@ function lastTimeSummary(exId){
   const ss=e.sets.map(st=>isCardio?`${st.reps||'—'} min`:`${st.weight||'—'}kg×${st.reps||'—'}`).join(' ');
   return `Última vez (${s.date}): ${ss}`;
 }
-function suggestSets(exId){
+function suggestSetValue(exId, si, plannedReps){
   const s=mostRecentSessionWith(exId);
   if(!s) return null;
   const e=s.exercises.find(x=>x.exId===exId);
   if(entryCardioDuration(e)) return null;
-  const base=parseFloat(e.targetReps);
+  const prevSet=e.sets[si];
+  if(!prevSet) return null;
+  const base=parseFloat(plannedReps);
   if(!base) return null;
-  const validSets=e.sets.filter(st=>st.weight!=='' && st.weight!=null && st.reps!=='' && st.reps!=null);
-  if(!validSets.length) return null;
+  if(prevSet.weight==='' || prevSet.weight==null || prevSet.reps==='' || prevSet.reps==null) return null;
   const top=base+4;
-  const weight=parseFloat(validSets[0].weight)||0;
-  const minReps=Math.min(...validSets.map(st=>parseFloat(st.reps)||0));
-  if(minReps<base) return {weight, reps:base};
-  if(minReps>=top) return {weight:Math.round((weight+2.5)*100)/100, reps:base};
-  return {weight, reps:Math.min(minReps+1, top)};
+  const weight=parseFloat(prevSet.weight)||0;
+  const reps=parseFloat(prevSet.reps)||0;
+  if(reps<base) return {weight, reps:base};
+  if(reps>=top) return {weight:Math.round((weight+2.5)*100)/100, reps:base};
+  return {weight, reps:Math.min(reps+1, top)};
 }
 function applySuggestedSets(entry){
   if(!entry || !entry.exId) return;
   if(entry.cardioDuration) return;
-  if(entry.sets.some(s=>s.weight!=='' || s.reps!=='')) return;
-  const sug=suggestSets(entry.exId);
-  if(!sug) return;
-  entry.sets.forEach(s=>{ s.weight=sug.weight; s.reps=sug.reps; });
+  if(!autoProgressionEnabled) return;
+  entry.sets.forEach((s,si)=>{
+    const sug=suggestSetValue(entry.exId, si, s.reps);
+    if(sug){ s.weight=sug.weight; s.reps=sug.reps; }
+  });
 }
 function buildWorkoutSetRow(entry, si, isBodyweight, isCardio){
   const s=entry.sets[si];
