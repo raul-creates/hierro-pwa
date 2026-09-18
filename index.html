@@ -1041,8 +1041,13 @@ function confirmBackupRestore(){
 }
 
 // ── GLOSSARY ──────────────────────────────────────────────────────────────────
-const APP_VERSION = 'v1.0';
+const APP_VERSION = 'v1.1';
 const CHANGELOG = [
+  {version:'v1.1', date:'2026-09-18', changes:[
+    'Sacados los toggles "Mismo peso"/"Mismas reps para todas las series" del editor de rutina (innecesarios: "+ Serie" ya copia el valor anterior).',
+    'Las rutinas modificadas "solo para un día" ya no aparecen en la lista de Rutinas ni en los selectores — solo las rutinas permanentes.',
+    'Al arrancar una sesión, los valores de peso/reps se precargan con lo último que hiciste; si la progresión automática está activada, la sugerencia aparece como texto ("Probá: ...") en vez de cargarse sola.',
+  ]},
   {version:'v1.0', date:'2026-09-18', changes:[
     'Rutinas independientes por día: cada día puede tener su propia rutina, con opción de aplicar cambios solo a ese día o a todos los que la comparten.',
     'Vista de detalle por día, con botón "Iniciar sesión" y opción de crear rutina o arrancar freestyle si no hay nada asignado.',
