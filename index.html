@@ -751,7 +751,17 @@ async function init() {
 
 function loadLog(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch{return[];}}
 function saveLog(){localStorage.setItem(STORAGE_KEY,JSON.stringify(log));}
-function loadRoutines(){try{return JSON.parse(localStorage.getItem(ROUTINES_KEY))||[];}catch{return[];}}
+function normalizeRoutineExercise(ex){
+  if(Array.isArray(ex.sets)) return ex;
+  const {reps, sets, ...rest} = ex;
+  const count = sets || 1;
+  return {...rest, sets: Array.from({length:count}, ()=>({weight:'', reps:''}))};
+}
+function loadRoutines(){
+  let r; try{ r=JSON.parse(localStorage.getItem(ROUTINES_KEY))||[]; }catch{ r=[]; }
+  r.forEach(routine=>{ routine.exercises=routine.exercises.map(normalizeRoutineExercise); });
+  return r;
+}
 function saveRoutines(){localStorage.setItem(ROUTINES_KEY,JSON.stringify(routines));}
 function loadWeek(){try{return JSON.parse(localStorage.getItem(WEEK_KEY))||{};}catch{return{};}}
 function saveWeek(){localStorage.setItem(WEEK_KEY,JSON.stringify(week));}
@@ -1424,7 +1434,7 @@ function loadTemplate(id){
   const t=STARTER_TEMPLATES.find(x=>x.id===id); if(!t)return;
   const createdIds = t.routines.map(r=>{
     const newId=uid();
-    routines.push({id:newId, name:r.name, exercises:r.exercises.map(e=>({...e}))});
+    routines.push({id:newId, name:r.name, exercises:r.exercises.map(e=>normalizeRoutineExercise({...e}))});
     return newId;
   });
   saveRoutines();
@@ -1446,7 +1456,7 @@ function isoOffset(daysFromToday){
   d.setDate(d.getDate()+daysFromToday);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function emptyRoutineEx(){return{id:uid(),cat:'',exId:'',sets:3,reps:'',perSide:false,linkedToNext:false,cardioDuration:false};}
+function emptyRoutineEx(){return{id:uid(),cat:'',exId:'',sets:[{weight:'',reps:''}],perSide:false,linkedToNext:false,cardioDuration:false,sameWeightForAllSets:false,sameRepsForAllSets:false};}
 
 function renderPlanSemanal(){
   const el=document.getElementById('plan-semanal'); if(!el) return;
@@ -1767,6 +1777,41 @@ function buildRoutineExBlock(ex, hasNext, totalCount){
   const canRm=totalCount>1;
   const exData=EXERCISES.find(e=>e.id===ex.exId);
   const groupOpts=GROUPS.map(g=>`<option value="${g.id}"${ex.cat===g.id?' selected':''}>${g.label}</option>`).join('');
+  const isBodyweight = exData?.equipment==='body weight';
+  const sameW=!!ex.sameWeightForAllSets, sameR=!!ex.sameRepsForAllSets;
+  const sharedWeight=(ex.sets[0]&&ex.sets[0].weight)||'', sharedReps=(ex.sets[0]&&ex.sets[0].reps)||'';
+  const sharedRowHtml=(sameW||sameR)?`<div class="set-row">
+      <span class="set-dot">◆</span>
+      ${sameW?`<div class="set-iw stp-wrap">
+        <button type="button" class="stp-btn" onclick="bumpRoutineSameWeight('${ex.id}',-2.5)">−</button>
+        <input type="number" inputmode="decimal" placeholder="${isBodyweight?'Corporal':'0'}" value="${sharedWeight}" onchange="updateRoutineSameWeight('${ex.id}',this.value)">
+        <button type="button" class="stp-btn" onclick="bumpRoutineSameWeight('${ex.id}',2.5)">+</button>
+      </div>`:'<span class="set-iw"></span>'}
+      ${sameR?`<div class="set-iw stp-wrap">
+        <button type="button" class="stp-btn" onclick="bumpRoutineSameReps('${ex.id}',-1)">−</button>
+        <input type="number" inputmode="numeric" placeholder="0" value="${sharedReps}" onchange="updateRoutineSameReps('${ex.id}',this.value)">
+        <button type="button" class="stp-btn" onclick="bumpRoutineSameReps('${ex.id}',1)">+</button>
+      </div>`:'<span class="set-iw"></span>'}
+      <span class="col-x"></span>
+    </div>`:'';
+  const rowsHtml=ex.sets.map((s,si)=>{
+    const canRmSet=ex.sets.length>1;
+    const weightCell=sameW?'<span class="set-iw"></span>':`<div class="set-iw stp-wrap">
+        <button type="button" class="stp-btn" onclick="bumpRoutineSet('${ex.id}',${si},'weight',-2.5)">−</button>
+        <input type="number" inputmode="decimal" placeholder="${isBodyweight?'Corporal':'0'}" value="${s.weight}" onchange="updateRoutineSetField('${ex.id}',${si},'weight',this.value)">
+        <button type="button" class="stp-btn" onclick="bumpRoutineSet('${ex.id}',${si},'weight',2.5)">+</button>
+      </div>`;
+    const repsCell=sameR?'<span class="set-iw"></span>':`<div class="set-iw stp-wrap">
+        <button type="button" class="stp-btn" onclick="bumpRoutineSet('${ex.id}',${si},'reps',-1)">−</button>
+        <input type="number" inputmode="numeric" placeholder="0" value="${s.reps}" onchange="updateRoutineSetField('${ex.id}',${si},'reps',this.value)">
+        <button type="button" class="stp-btn" onclick="bumpRoutineSet('${ex.id}',${si},'reps',1)">+</button>
+      </div>`;
+    return `<div class="set-row">
+      <span class="set-dot">●</span>
+      ${weightCell}${repsCell}
+      <button class="btn-rm-set" onclick="removeRoutineSet('${ex.id}',${si})" ${!canRmSet?'disabled style="opacity:0.2"':''}>✕</button>
+    </div>`;
+  }).join('');
   return`<div class="swipe-row" data-delete-fn="removeRoutineExercise" data-delete-arg="${ex.id}" data-swipe-disabled="${!canRm}">
     <div class="swipe-bg"><span class="swipe-bg-icon">🗑️</span><span>Borrar</span></div>
     <div class="swipe-content ex-block" id="rexblock-${ex.id}">
@@ -1779,13 +1824,18 @@ function buildRoutineExBlock(ex, hasNext, totalCount){
       </div>
       <button class="btn-remove-ex" onclick="removeRoutineExercise('${ex.id}')" ${!canRm?'disabled style="color:#1E2130"':''}>✕</button>
     </div>
-    <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>Series</span><span>Reps objetivo</span><span class="col-x"></span></div>
-    <div class="set-row">
-      <span class="set-dot">●</span>
-      <div class="set-iw"><input type="number" inputmode="numeric" placeholder="3" value="${ex.sets||''}" onchange="updateRoutineField('${ex.id}','sets',this.value)"></div>
-      <div class="set-iw"><input type="text" placeholder="ej. 8-10" value="${ex.reps||''}" onchange="updateRoutineField('${ex.id}','reps',this.value)"></div>
-      <span class="col-x"></span>
-    </div>
+    <div class="sets-hdr"><span style="width:14px;flex-shrink:0"></span><span>${sameW?'':'Peso'}</span><span>${sameR?'':'Reps'}</span><span class="col-x"></span></div>
+    ${sharedRowHtml}
+    ${rowsHtml}
+    <button type="button" class="btn-add-set" onclick="addRoutineSet('${ex.id}')">+ Serie</button>
+    <label class="effort-row" style="cursor:pointer">
+      <span class="field-label" style="margin:0">Mismo peso para todas las series</span>
+      <input type="checkbox" ${sameW?'checked':''} onchange="toggleRoutineSameWeight('${ex.id}', this.checked)">
+    </label>
+    <label class="effort-row" style="cursor:pointer">
+      <span class="field-label" style="margin:0">Mismas reps para todas las series</span>
+      <input type="checkbox" ${sameR?'checked':''} onchange="toggleRoutineSameReps('${ex.id}', this.checked)">
+    </label>
     <label class="effort-row" style="cursor:pointer">
       <span class="field-label" style="margin:0">Por lado</span>
       <input type="checkbox" ${ex.perSide?'checked':''} onchange="updateRoutinePerSide('${ex.id}', this.checked)">
@@ -1803,7 +1853,16 @@ function buildRoutineExBlock(ex, hasNext, totalCount){
 }
 function updateRoutineExCat(id,cat){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.cat=cat;ex.exId='';saveRoutines();renderRoutineExercises();}
 function updateRoutineExId(id,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.exId=val;ex.cardioDuration=defaultCardioDuration(EXERCISES.find(x=>x.id===val));saveRoutines();}
-function updateRoutineField(id,field,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex[field]=field==='sets'?(parseInt(val,10)||3):val;saveRoutines();}
+function updateRoutineSetField(id,si,field,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;const s=ex.sets[si];if(!s)return;s[field]=val;saveRoutines();}
+function bumpRoutineSet(id,si,field,delta){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;const s=ex.sets[si];if(!s)return;const cur=parseFloat(s[field])||0;s[field]=Math.max(0, Math.round((cur+delta)*100)/100);saveRoutines();renderRoutineExercises();}
+function addRoutineSet(id){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;const last=ex.sets[ex.sets.length-1];ex.sets.push({weight:last?last.weight:'', reps:last?last.reps:''});saveRoutines();renderRoutineExercises();}
+function removeRoutineSet(id,si){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;if(ex.sets.length<=1)return;if(!confirm('¿Eliminar esta serie?'))return;ex.sets.splice(si,1);saveRoutines();renderRoutineExercises();}
+function toggleRoutineSameWeight(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.sameWeightForAllSets=checked;if(checked){const w=(ex.sets[0]&&ex.sets[0].weight)||'';ex.sets.forEach(s=>s.weight=w);}saveRoutines();renderRoutineExercises();}
+function toggleRoutineSameReps(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.sameRepsForAllSets=checked;if(checked){const rp=(ex.sets[0]&&ex.sets[0].reps)||'';ex.sets.forEach(s=>s.reps=rp);}saveRoutines();renderRoutineExercises();}
+function updateRoutineSameWeight(id,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.sets.forEach(s=>s.weight=val);saveRoutines();}
+function updateRoutineSameReps(id,val){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.sets.forEach(s=>s.reps=val);saveRoutines();}
+function bumpRoutineSameWeight(id,delta){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;const cur=parseFloat(ex.sets[0]&&ex.sets[0].weight)||0;const next=Math.max(0, Math.round((cur+delta)*100)/100);ex.sets.forEach(s=>s.weight=next);saveRoutines();renderRoutineExercises();}
+function bumpRoutineSameReps(id,delta){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;const cur=parseFloat(ex.sets[0]&&ex.sets[0].reps)||0;const next=Math.max(0, Math.round((cur+delta)*100)/100);ex.sets.forEach(s=>s.reps=next);saveRoutines();renderRoutineExercises();}
 function updateRoutinePerSide(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.perSide=checked;saveRoutines();}
 function updateRoutineLinkedToNext(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.linkedToNext=checked;saveRoutines();}
 function updateRoutineCardioDuration(id,checked){const r=currentRoutine();if(!r)return;const ex=r.exercises.find(e=>e.id===id);if(!ex)return;ex.cardioDuration=checked;saveRoutines();}
@@ -1926,7 +1985,7 @@ function dismissSharedRoutine(){
 }
 function cleanImportedRoutineData(data){
   if(!data || data.hierro_routine!==1 || !Array.isArray(data.exercises)) return {error:'No es una rutina válida'};
-  const cleanExercises=data.exercises.filter(ex=>EXERCISES.some(x=>x.id===ex.exId)).map(({exId,cat,sets,reps})=>({exId,cat,sets:sets||3,reps:reps||''}));
+  const cleanExercises=data.exercises.filter(ex=>EXERCISES.some(x=>x.id===ex.exId)).map(({exId,cat,sets,reps})=>normalizeRoutineExercise({exId,cat,sets,reps}));
   if(!cleanExercises.length) return {error:'Ningún ejercicio de la rutina es válido'};
   const rawName = typeof data.name==='string' ? data.name.slice(0,60) : '';
   const cleanName = rawName.replace(/[<>&"]/g,'') || 'Rutina importada';
