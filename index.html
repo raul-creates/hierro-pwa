@@ -1458,6 +1458,7 @@ function renderPlanSemanal(){
 let dayOverlayIso='';
 let dayOverlayChoice=null;
 let dayOverlayMode='detail';
+let dayOverlayEditRoutineId=null;
 function openDayOverlay(iso){
   dayOverlayIso=iso;
   dayOverlayChoice=null;
@@ -1471,6 +1472,7 @@ function closeDayOverlay(){
 function renderDayOverlay(){
   if(dayOverlayMode==='reassign') renderDayOverlayReassign();
   else if(dayOverlayMode==='start-chooser') renderDayOverlayStartChooser();
+  else if(dayOverlayMode==='edit-scope') renderDayOverlayEditScope();
   else renderDayOverlayDetail();
 }
 function renderDayOverlayDetail(){
@@ -1501,7 +1503,7 @@ function renderDayOverlayDetail(){
       <div style="padding:6px 14px 4px">${exList}</div>
       <div style="padding:10px 14px 14px;display:flex;flex-direction:column;gap:8px">
         <button class="btn-primary" style="width:100%;padding:12px 0" onclick="startDaySession()">Iniciar sesión</button>
-        <button class="btn-ghost" style="width:100%;padding:11px 0" onclick="closeDayOverlay();editRoutineFn('${routine.id}')">Editar ejercicios</button>
+        <button class="btn-ghost" style="width:100%;padding:11px 0" onclick="editRoutineFromDay('${routine.id}')">Editar ejercicios</button>
         <button class="btn-ghost" style="width:100%;padding:11px 0" onclick="showDayReassign()">Cambiar rutina del día</button>
       </div>`;
   } else {
@@ -1600,6 +1602,62 @@ function startFreestyleSession(){
   closeDayOverlay();
   activeWorkout = buildActiveWorkout(null, null);
   enterWorkoutScreen();
+}
+function countRoutineUsage(routineId){
+  let n=0;
+  Object.values(week).forEach(v=>{ if(v===routineId) n++; });
+  Object.values(dayOverrides).forEach(v=>{ if(v===routineId) n++; });
+  return n;
+}
+function forkRoutine(routineId){
+  const orig=routines.find(r=>r.id===routineId);
+  if(!orig) return null;
+  const clone={id:uid(), name:orig.name, exercises:orig.exercises.map(e=>({...e,id:uid()}))};
+  routines.push(clone);
+  saveRoutines();
+  return clone.id;
+}
+function editRoutineFromDay(routineId){
+  if(countRoutineUsage(routineId)<=1){ closeDayOverlay(); editRoutineFn(routineId); return; }
+  dayOverlayEditRoutineId=routineId;
+  dayOverlayMode='edit-scope';
+  renderDayOverlay();
+}
+function renderDayOverlayEditScope(){
+  const body=document.getElementById('day-overlay-body');
+  const wd=new Date(dayOverlayIso+'T12:00:00').getDay();
+  const dayNameCap=WEEKDAY_NAMES[wd].charAt(0).toUpperCase()+WEEKDAY_NAMES[wd].slice(1);
+  const otherDays=[];
+  WEEK_LAYOUT.forEach(w=>{ if(week[String(w)]===dayOverlayEditRoutineId && w!==wd) otherDays.push(WEEKDAY_NAMES[w]); });
+  Object.keys(dayOverrides).forEach(iso=>{
+    if(dayOverrides[iso]===dayOverlayEditRoutineId && iso!==dayOverlayIso){
+      const owd=new Date(iso+'T12:00:00').getDay();
+      otherDays.push(WEEKDAY_NAMES[owd]);
+    }
+  });
+  document.getElementById('day-overlay-title').textContent='¿Alcance del cambio?';
+  body.innerHTML=`<div style="padding:14px;color:#9195A3;font-size:14px;line-height:1.5">Esta rutina también se usa en ${otherDays.join(', ')}. ¿Los cambios que hagas ahora van a aplicar solo a ${dayNameCap} o a todos esos días?</div>
+    <div style="padding:10px 14px 14px;display:flex;flex-direction:column;gap:8px">
+      <button class="btn-primary" style="padding:11px 0" onclick="confirmEditScope('only')">Solo ${dayNameCap}</button>
+      <button class="btn-ghost" style="padding:9px 0" onclick="confirmEditScope('all')">Todos esos días</button>
+    </div>`;
+}
+function confirmEditScope(scope){
+  const routineId=dayOverlayEditRoutineId;
+  if(scope==='only'){
+    const newId=forkRoutine(routineId);
+    if(Object.prototype.hasOwnProperty.call(dayOverrides,dayOverlayIso) && dayOverrides[dayOverlayIso]===routineId){
+      dayOverrides[dayOverlayIso]=newId; saveDayOverrides();
+    } else {
+      const wd=new Date(dayOverlayIso+'T12:00:00').getDay();
+      week[String(wd)]=newId; saveWeek();
+    }
+    closeDayOverlay();
+    editRoutineFn(newId);
+  } else {
+    closeDayOverlay();
+    editRoutineFn(routineId);
+  }
 }
 
 
