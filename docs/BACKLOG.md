@@ -39,17 +39,18 @@ Review recibida por PDF más feedback hablado adicional. Dividido en dos sub-pro
   - Fecha real bajo cada día de la tira semanal (semana actual solamente, sin navegación a otras semanas por ahora).
   - Botón "atrás" global agrandado; se agrega manejo de `history`/`popstate` para que el botón físico o el gesto de atrás del teléfono cierre overlays/subvistas (Ajustes, editor de rutina) en vez de salir de la app.
   - Ajustes se muda del header a la bottom-nav; nuevo orden: Inicio, Guía, Empezar, Stats, Ajustes.
-- [ ] **Sub-proyecto 2 — Rutinas independientes por día** — spec escrita, pendiente de revisión final e implementación (ver `docs/superpowers/specs/2026-09-17-rutinas-independientes-por-dia-design.md`). Alcance acordado:
-  - Navegación libre entre días desde Inicio, entrando a ver la rutina individual de cada uno (PDF #1).
-  - Botón grande "Iniciar sesión" dentro de la vista de cada día; si no hay rutina cargada, preguntar si crear una rutina nueva o una sesión freestyle en vez de deshabilitar el botón (PDF #2 + feedback hablado).
+- [x] **Sub-proyecto 2 — Rutinas independientes por día** — hecho (2026-09-17, ver `docs/superpowers/specs/2026-09-17-rutinas-independientes-por-dia-design.md` y `docs/superpowers/plans/2026-09-17-rutinas-independientes-por-dia.md`):
+  - Navegación libre entre días desde Inicio: cada día abre una vista de detalle con su rutina, en vez de solo permitir reasignar (PDF #1).
+  - Botón grande "Iniciar sesión" dentro de la vista de cada día; si no hay rutina cargada, pregunta si crear una rutina nueva o arrancar una sesión freestyle en vez de deshabilitar el botón (PDF #2 + feedback hablado).
   - Selector de día suma la opción "Crear rutina"/freestyle además de Descanso y rutinas existentes (feedback hablado).
-  - Al editar ejercicios/pesos o agregar/quitar ejercicios de un día, preguntar alcance: solo ese día o todos los días que usan esa misma rutina (PDF #3, #4, #5, refinado en el feedback hablado).
-  - Enfoque de datos final ("fork on edit", ver spec): `week`/`dayOverrides` siguen guardando un id de `routines[]` como hoy (sin migrar datos existentes); recién al editar el contenido desde un día compartido se pregunta el alcance, y "solo este día" clona la rutina con un id nuevo en vez de mantener copias por defecto desde la asignación.
-  - Nuevo, sumado durante el brainstorming: toggles de días de la semana dentro del propio editor de rutina, para asignar la misma rutina a otros días sin salir del editor.
+  - Al editar ejercicios/pesos o agregar/quitar ejercicios de un día, si la rutina es compartida por 2+ días se pregunta el alcance: solo ese día o todos los días que usan esa misma rutina (PDF #3, #4, #5, refinado en el feedback hablado).
+  - Enfoque de datos final ("fork on edit"): `week`/`dayOverrides` siguen guardando un id de `routines[]` como antes (sin migrar datos existentes); recién al editar el contenido desde un día compartido se pregunta el alcance, y "solo este día" clona la rutina con un id nuevo en vez de mantener copias por defecto desde la asignación.
+  - Sumado durante el brainstorming: toggles de días de la semana ("Días asignados") dentro del propio editor de rutina, para asignar la misma rutina a otros días sin salir del editor.
   - Descartado por ahora: navegar a semanas futuras/pasadas desde la tira semanal (se evaluará más adelante, y si se hace, sin permitir editar esas semanas).
+  - Verificación final end-to-end (los 10 puntos del testing checklist de la spec, incluyendo fork "solo este día"/"todos esos días", freestyle desde día vacío y desde el selector, y regresión de back-navigation) pasó sin encontrar bugs nuevos.
 - [ ] **Sub-proyecto 3 — Editor de ejercicios de rutina** — feedback recibido, todavía sin diseñar:
   - Falta un botón "Terminar"/"Guardar" explícito al editar una rutina (hoy solo se sale con la flecha atrás).
   - Renombrar "set" → "serie" en toda la app (cambio de terminología global).
   - El editor de rutina hoy solo permite definir "cantidad de series + reps objetivo" (un número + un target), sin peso. Pasar a un modelo de series individuales editables (como ya existe en el entrenamiento en vivo/freestyle), cada una con su propio peso y reps, para poder planificar progresión por serie desde la rutina misma — no solo cargarla en vivo.
 
-_Última actualización: 2026-09-17 (feedback de Raúl, sub-proyecto 1 de UI) — roadmap A–I completo + 2 de 3 ideas sueltas + rediseño Inicio/Rutinas/Stats completo + sub-proyecto 1 del feedback de Raúl completo, sub-proyecto 2 pendiente._
+_Última actualización: 2026-09-17 (feedback de Raúl, sub-proyectos 1 y 2) — roadmap A–I completo + 2 de 3 ideas sueltas + rediseño Inicio/Rutinas/Stats completo + sub-proyectos 1 y 2 del feedback de Raúl completos, sub-proyecto 3 pendiente._
