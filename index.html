@@ -1056,6 +1056,7 @@ function closeListOverlay(){ document.getElementById('list-overlay').classList.r
 function startWorkout(){
   if(activeWorkout){ enterWorkoutScreen(); return; }
   const effId = effectiveRoutineId(todayISO());
+  if(effId==='freestyle'){ activeWorkout = buildActiveWorkout(null, null); enterWorkoutScreen(); return; }
   if(effId && effId!=='rest'){
     const r = routines.find(x=>x.id===effId);
     if(r){ activeWorkout = buildActiveWorkout(r, null); enterWorkoutScreen(); return; }
@@ -1428,14 +1429,15 @@ function renderPlanSemanal(){
     const iso=isoOffset(diff);
     const effId=effectiveRoutineId(iso);
     const isRest=effId==='rest';
-    const routine=(!isRest && effId) ? routines.find(r=>r.id===effId) : null;
+    const isFreestyle=effId==='freestyle';
+    const routine=(!isRest && !isFreestyle && effId) ? routines.find(r=>r.id===effId) : null;
     const hasOverride=Object.prototype.hasOwnProperty.call(dayOverrides, iso);
     const isToday=iso===todayIso;
-    const label=isRest?'Descanso':(routine?routine.name:'—');
+    const label=isRest?'Descanso':(isFreestyle?'Libre':(routine?routine.name:'—'));
     const dateLabel=`${iso.slice(8,10)}/${iso.slice(5,7)}`;
     const cls=['week-day'];
     if(isToday)cls.push('today');
-    if(routine||isRest)cls.push('has-routine');
+    if(routine||isRest||isFreestyle)cls.push('has-routine');
     cellsHtml+=`<button class="${cls.join(' ')}" onclick="openDayOverlay('${iso}')">
       <div class="wd-letter">${WEEKDAY_LETTERS[wd]}</div>
       <div class="wd-date">${dateLabel}</div>
