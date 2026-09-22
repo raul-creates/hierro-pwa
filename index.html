@@ -354,6 +354,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
           <button class="btn-ghost" onclick="openChangelog()">Ver changelog</button>
         </div>
       </div>
+      <div id="settings-powered-by" style="display:none;text-align:center;color:#6B6E7A;font-size:12px;padding:16px 0 4px">Desarrollado por HIERRO</div>
     </div>
   </div>
 
@@ -1099,6 +1100,11 @@ function applyBranding(){
     const img=document.getElementById('header-logo');
     img.src=b.logo;
     img.style.display='inline-block';
+  }
+  const poweredByEl=document.getElementById('settings-powered-by');
+  if(poweredByEl){
+    poweredByEl.textContent = b.poweredBy || 'Desarrollado por HIERRO';
+    poweredByEl.style.display='block';
   }
 }
 const GLOSSARY = [
