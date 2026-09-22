@@ -33,7 +33,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .header{padding:13px 14px 10px;border-bottom:1px solid #1E2130;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#0F1117;z-index:10}
 .logo-block .wordmark{color:var(--accent);font-weight:900;font-size:20px;letter-spacing:-0.5px;line-height:1}
 .app-version{color:#6B6E7A;font-weight:600;font-size:11px;letter-spacing:0;vertical-align:middle}
-.header-tagline{color:#6B6E7A;font-weight:500;font-size:11px;margin-left:6px;vertical-align:middle}
+.header-tagline{color:#6B6E7A;font-weight:500;font-size:11px;margin-left:6px;vertical-align:baseline}
 .logo-block .sub{color:#9195A3;font-size:11px;letter-spacing:0.3px;font-weight:600;margin-top:2px;line-height:1.3;max-width:230px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .header-actions{display:flex;gap:7px}
 .btn-ghost{background:#1A1D2E;border:none;border-radius:7px;color:#888;padding:6px 11px;font-size:13px;font-weight:600;cursor:pointer}
@@ -282,7 +282,8 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 <body>
 
 <div id="loader">
-  <div class="lw">HIERRO</div>
+  <div class="lw" id="loader-name">HIERRO</div>
+  <img id="loader-logo" style="display:none;max-width:220px;max-height:120px;margin-bottom:12px" alt="">
   <div class="ls">Cargando biblioteca…</div>
   <div class="ls-quote" id="loader-quote"></div>
   <div class="spin"></div>
@@ -296,7 +297,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
       <div class="logo-block">
         <div class="wordmark">
           <span id="header-name">HIERRO <span class="app-version" id="header-version"></span></span>
-          <img id="header-logo" style="display:none;height:44px;vertical-align:middle" alt="">
+          <img id="header-logo" style="display:none;height:44px;vertical-align:baseline" alt="">
           <span class="header-tagline" id="header-tagline"></span>
         </div>
         <div class="sub" id="log-quote"></div>
@@ -1119,6 +1120,10 @@ function applyBranding(){
     const img=document.getElementById('header-logo');
     img.src=b.logo;
     img.style.display='inline-block';
+    document.getElementById('loader-name').style.display='none';
+    const loaderImg=document.getElementById('loader-logo');
+    loaderImg.src=b.logo;
+    loaderImg.style.display='block';
   }
   const poweredByEl=document.getElementById('settings-powered-by');
   if(poweredByEl){
