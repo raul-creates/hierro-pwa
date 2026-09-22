@@ -31,10 +31,11 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 /* ── HEADER ── */
 .header{padding:13px 14px 10px;border-bottom:1px solid #1E2130;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#0F1117;z-index:10}
+.logo-block{flex:1;min-width:0}
 .logo-block .wordmark{color:var(--accent);font-weight:900;font-size:20px;letter-spacing:-0.5px;line-height:1}
 .app-version{color:#6B6E7A;font-weight:600;font-size:11px;letter-spacing:0;vertical-align:middle}
 .header-tagline{color:#6B6E7A;font-weight:500;font-size:11px;margin-left:6px;vertical-align:baseline}
-.logo-block .sub{color:#9195A3;font-size:11px;letter-spacing:0.3px;font-weight:600;margin-top:8px;line-height:1.3;max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo-block .sub{color:#9195A3;font-size:11px;letter-spacing:0.3px;font-weight:600;margin-top:8px;line-height:1.3;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .header-actions{display:flex;gap:7px}
 .btn-ghost{background:#1A1D2E;border:none;border-radius:7px;color:#888;padding:6px 11px;font-size:13px;font-weight:600;cursor:pointer}
 .btn-primary{background:var(--accent);border:none;border-radius:7px;color:#0F1117;padding:6px 12px;font-size:13px;font-weight:800;cursor:pointer}
@@ -1087,7 +1088,12 @@ const GYM_BRANDING = {
     tagline: 'TU GYM EN EL CENTRO',
     logo: 'assets/power-gimnasio-logo.png',
     accent: '#D93127',
-    quotesMode: 'default',
+    quotesMode: 'custom',
+    customQuotes: [
+      'Disciplina hoy, resultados siempre.',
+      'El único límite sos vos.',
+      'Entrená tu cuerpo, fortalecé tu mente, superá tus límites.',
+    ],
     poweredBy: null,
   },
 };
