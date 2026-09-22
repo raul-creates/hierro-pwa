@@ -283,8 +283,7 @@ input[type=number]{width:100%;background:#1A1D2E;border:1px solid #252840;border
 <body>
 
 <div id="loader">
-  <div class="lw" id="loader-name">HIERRO</div>
-  <img id="loader-logo" style="display:none;max-width:220px;max-height:120px;margin-bottom:12px" alt="">
+  <div class="lw">HIERRO</div>
   <div class="ls">Cargando biblioteca…</div>
   <div class="ls-quote" id="loader-quote"></div>
   <div class="spin"></div>
@@ -1126,10 +1125,6 @@ function applyBranding(){
     const img=document.getElementById('header-logo');
     img.src=b.logo;
     img.style.display='inline-block';
-    document.getElementById('loader-name').style.display='none';
-    const loaderImg=document.getElementById('loader-logo');
-    loaderImg.src=b.logo;
-    loaderImg.style.display='block';
   }
   const poweredByEl=document.getElementById('settings-powered-by');
   if(poweredByEl){
