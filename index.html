@@ -672,7 +672,13 @@ const QUOTES = [
   'La disciplina, aplicada con paciencia, se convierte en algo natural.',
   'Domina tu mente o ella te dominará a ti.',
 ];
-function randomQuote(){return QUOTES[Math.floor(Math.random()*QUOTES.length)];}
+function activeQuotes(){
+  const b=currentBranding();
+  if(!b || !b.quotesMode || b.quotesMode==='default') return QUOTES;
+  if(b.quotesMode==='custom' && Array.isArray(b.customQuotes) && b.customQuotes.length) return b.customQuotes;
+  return [];
+}
+function randomQuote(){ const q=activeQuotes(); return q.length ? q[Math.floor(Math.random()*q.length)] : ''; }
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let EXERCISES = [];
