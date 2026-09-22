@@ -1081,8 +1081,20 @@ const CHANGELOG = [
   ]},
 ];
 const GYM_BRANDING = {
+  'raul-creates.github.io/powergym': {
+    name: 'POWER GIMNASIO',
+    tagline: 'TU GYM EN EL CENTRO',
+    logo: 'assets/power-gimnasio-logo.png',
+    accent: '#D93127',
+    quotesMode: 'default',
+    poweredBy: null,
+  },
 };
-function currentBranding(){ return GYM_BRANDING[location.hostname] || null; }
+function currentBranding(){
+  const seg=location.pathname.split('/').filter(Boolean)[0]||'';
+  const pathKey=seg?`${location.hostname}/${seg}`:location.hostname;
+  return GYM_BRANDING[pathKey] || GYM_BRANDING[location.hostname] || null;
+}
 function hexToRgb(hex){
   const h=hex.replace('#','');
   const n=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h, 16);
