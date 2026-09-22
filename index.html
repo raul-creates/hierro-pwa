@@ -697,6 +697,7 @@ let gChartMetric = 'max';
 let pickerExBlockId = '';
 let pickerSearch = '';
 let editingRoutineId = null;
+let pendingDayToggles = {};
 function currentRoutine(){ return routines.find(r=>r.id===editingRoutineId); }
 let restSec = 90;
 let effortScale = 'rpe';
@@ -1858,6 +1859,7 @@ function newRoutine(){
   routines.push(r);
   saveRoutines();
   editingRoutineId=r.id;
+  pendingDayToggles={};
   document.getElementById('routine-editor-title').textContent='Nueva rutina';
   document.getElementById('routine-name').value='';
   renderRoutineExercises();
@@ -1871,6 +1873,7 @@ function editRoutineFn(id){
   r.exercises.forEach(e=>{ if(!e.id){ e.id=uid(); patched=true; } });
   if(patched) saveRoutines();
   editingRoutineId=id;
+  pendingDayToggles={};
   document.getElementById('routine-editor-title').textContent='Editar rutina';
   document.getElementById('routine-name').value=r.name;
   renderRoutineExercises();
@@ -1880,6 +1883,25 @@ function editRoutineFn(id){
 function cancelRoutineEdit(){
   const r=currentRoutine();
   if(r && !r.name.trim()){ r.name='Rutina'; saveRoutines(); }
+  if(r && Object.keys(pendingDayToggles).length){
+    const changes=[];
+    Object.keys(pendingDayToggles).forEach(key=>{
+      const desiredOn=pendingDayToggles[key];
+      const currentlyOn=week[key]===r.id;
+      if(desiredOn===currentlyOn) return;
+      changes.push({key, desiredOn, previous:week[key]});
+    });
+    const overwrites=changes.filter(c=>c.desiredOn && c.previous).map(c=>{
+      const label=describeDaySlot(c.previous);
+      return label ? `${WEEKDAY_NAMES[Number(c.key)]} (tenía "${label}")` : null;
+    }).filter(Boolean);
+    if(overwrites.length && !confirm(`Vas a reemplazar: ${overwrites.join(', ')}. ¿Confirmar?`)){
+      return;
+    }
+    changes.forEach(c=>{ week[c.key] = c.desiredOn ? r.id : null; });
+    if(changes.length){ saveWeek(); renderPlanSemanal(); }
+  }
+  pendingDayToggles={};
   editingRoutineId=null;
   showLog();
 }
@@ -1954,16 +1976,24 @@ function renderRoutineDayToggles(){
   const el=document.getElementById('routine-day-toggles');
   if(!el)return;
   const r=currentRoutine(); if(!r)return;
-  el.innerHTML=WEEK_LAYOUT.map(wd=>
-    `<button type="button" class="rdt-btn${week[String(wd)]===r.id?' on':''}" onclick="toggleRoutineDay(${wd})">${WEEKDAY_LETTERS[wd]}</button>`
-  ).join('');
+  el.innerHTML=WEEK_LAYOUT.map(wd=>{
+    const key=String(wd);
+    const on=Object.prototype.hasOwnProperty.call(pendingDayToggles,key) ? pendingDayToggles[key] : (week[key]===r.id);
+    return `<button type="button" class="rdt-btn${on?' on':''}" onclick="toggleRoutineDay(${wd})">${WEEKDAY_LETTERS[wd]}</button>`;
+  }).join('');
 }
 function toggleRoutineDay(wd){
   const r=currentRoutine(); if(!r)return;
-  week[String(wd)] = (week[String(wd)]===r.id) ? null : r.id;
-  saveWeek();
+  const key=String(wd);
+  const current=Object.prototype.hasOwnProperty.call(pendingDayToggles,key) ? pendingDayToggles[key] : (week[key]===r.id);
+  pendingDayToggles[key]=!current;
   renderRoutineDayToggles();
-  renderPlanSemanal();
+}
+function describeDaySlot(v){
+  if(v==='rest') return 'Descanso';
+  if(v==='freestyle') return 'Freestyle';
+  if(v){ const other=routines.find(x=>x.id===v); if(other) return other.name; }
+  return null;
 }
 function addRoutineExercise(){const r=currentRoutine();if(!r)return;r.exercises.push(emptyRoutineEx());saveRoutines();renderRoutineExercises();setTimeout(()=>{const b=document.querySelectorAll('#routine-exercises-container .ex-block');if(b.length)b[b.length-1].scrollIntoView({behavior:'smooth'});},50);}
 function removeRoutineExercise(id){
