@@ -51,5 +51,20 @@ Review recibida por PDF más feedback hablado adicional. Dividido en dos sub-pro
 - [x] **Sub-proyecto 3 — Editor de ejercicios de rutina** — hecho (2026-09-18, ver `docs/superpowers/specs/2026-09-17-series-con-peso-planificado-design.md` y `docs/superpowers/plans/2026-09-17-series-con-peso-planificado.md`):
   - Botón "Terminar"/"Guardar" explícito al editar una rutina, y renombrado "set" → "serie" en toda la app (hecho como parte de la rama previa, ver commit `289729e`).
   - El editor de rutina pasó de "cantidad de series + reps objetivo" a un modelo de series individuales editables, cada una con su propio peso y reps, con toggles "Mismo peso"/"Mismas reps para todas las series"; un toggle "Progresión automática" en Ajustes (default activado) permite desactivar la progresión automática por serie y dejar que el plan de la rutina mande siempre. Verificación final end-to-end (los 10 puntos del testing checklist de la spec) pasó sin encontrar bugs nuevos.
+- [x] **Sub-proyecto 4 — Ajuste post-lanzamiento (feedback de Raúl tras probar la v1.0)** — hecho (2026-09-18, ver commits `7102f63` y `d7b98db`):
+  - Sacados los toggles "Mismo peso"/"Mismas reps para todas las series" del editor de rutina (introducidos en el Sub-proyecto 3, arriba): se juzgaron innecesarios porque "+ Serie" ya copia el valor de la serie anterior, que se puede editar a mano.
+  - Las rutinas forkeadas "solo para este día" (Sub-proyecto 2, rutinas independientes por día) ahora se marcan `hidden:true` y dejan de aparecer en la lista de Rutinas, en el selector de "Empezar" y en el selector de reasignación de un día — solo las rutinas permanentes/compartidas se listan ahí.
+  - Al arrancar una sesión, cada serie se precarga con los valores reales de la última vez que se hizo ese ejercicio (no con el plan estático de la rutina ni con una sugerencia auto-aplicada); si "Progresión automática" está activada, la sugerencia se muestra como texto ("Probá: ...") al lado del ejercicio en vez de cargarse sola en los inputs.
+  - Versión de la app subida a v1.1 con el changelog correspondiente (ver constante `CHANGELOG` en `index.html`).
 
-_Última actualización: 2026-09-18 (series con peso planificado) — roadmap A–I completo + 2 de 3 ideas sueltas + rediseño Inicio/Rutinas/Stats completo + los 3 sub-proyectos del feedback de Raúl completos._
+## Marca blanca por gimnasio (2026-09-21)
+
+- [x] **Branding configurable por gimnasio (white-label)** — hecho (2026-09-21, ver `docs/superpowers/specs/2026-09-21-white-label-branding-design.md` y `docs/superpowers/plans/2026-09-21-white-label-branding.md`):
+  - Color de acento parametrizado vía variables CSS `--accent`/`--accent-rgb`, con todo el `#FFD200` hardcodeado de la app reapuntado a ellas.
+  - Tabla `GYM_BRANDING` (vacía por default, una entrada por hostname) + `currentBranding()`/`hexToRgb()`/`applyBranding()`: aplica color de acento, `theme-color` de la meta tag, y nombre/tagline/logo en el header y en el título de la pestaña.
+  - Header muestra nombre, logo y tagline del gym cuando hay branding activo; sin branding, sigue mostrando "HIERRO v1.1" como siempre.
+  - Frases motivacionales configurables por gym vía `quotesMode` ('default' = las `QUOTES` de HIERRO, 'custom' = lista propia del gym, 'none' = sin frase).
+  - Footer "Desarrollado por HIERRO" en Ajustes cuando la app está brandeada (o el texto propio de `poweredBy` si el gym lo pisa).
+  - Verificación final end-to-end con un gym de prueba completo (todos los campos a la vez) confirmó que color de acento, header, frases y footer conviven sin pisarse entre sí, y que sin ningún gym configurado (`GYM_BRANDING` vacío) la app queda indistinguible de HIERRO original.
+
+_Última actualización: 2026-09-21 (branding white-label por gimnasio) — roadmap A–I completo + 2 de 3 ideas sueltas + rediseño Inicio/Rutinas/Stats completo + los 4 sub-proyectos del feedback de Raúl completos + branding white-label por gimnasio completo._
