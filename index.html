@@ -1059,8 +1059,14 @@ function confirmBackupRestore(){
 }
 
 // ── GLOSSARY ──────────────────────────────────────────────────────────────────
-const APP_VERSION = 'v1.1';
+const APP_VERSION = 'v1.3';
 const CHANGELOG = [
+  {version:'v1.3', date:'2026-09-21', changes:[
+    'Los toggles de "Días asignados" en el editor de rutina ya no guardan al toque: los cambios quedan pendientes hasta salir del editor, y si alguno reemplazaría una rutina (o descanso/freestyle) ya asignada a ese día, se pide confirmación antes de aplicar nada.',
+  ]},
+  {version:'v1.2', date:'2026-09-21', changes:[
+    'Marca blanca por gimnasio: nombre, tagline, logo, color de acento y frases motivacionales personalizables según el dominio, compartiendo la misma base de código para todos.',
+  ]},
   {version:'v1.1', date:'2026-09-18', changes:[
     'Sacados los toggles "Mismo peso"/"Mismas reps para todas las series" del editor de rutina (innecesarios: "+ Serie" ya copia el valor anterior).',
     'Las rutinas modificadas "solo para un día" ya no aparecen en la lista de Rutinas ni en los selectores — solo las rutinas permanentes.',
