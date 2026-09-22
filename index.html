@@ -767,7 +767,7 @@ async function init() {
   document.getElementById('loader').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('log-quote').textContent = randomQuote();
-  document.getElementById('header-version').textContent = APP_VERSION;
+  const hv=document.getElementById('header-version'); if(hv) hv.textContent = APP_VERSION;
   renderPlanSemanal();
   renderRoutinesList();
   initSwipeDelete(document.getElementById('history-list'));
@@ -2299,8 +2299,8 @@ function buildProgressionSVG(history, metric){
   });
   const poly=pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   const unit=metric==='volume'?'kg·rep':'kg';
-  const circles=pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--accent)"><title>${p.h.date}: ${p.h[metric]}${unit}</title></circle>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><polyline points="${poly}" fill="none" stroke="var(--accent)" stroke-width="2"/>${circles}</svg>`;
+  const circles=pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" style="fill:var(--accent)"><title>${p.h.date}: ${p.h[metric]}${unit}</title></circle>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><polyline points="${poly}" fill="none" style="stroke:var(--accent)" stroke-width="2"/>${circles}</svg>`;
 }
 function setChartMetric(metric){gChartMetric=metric;renderGuideDetail();}
 function addToToday(){
